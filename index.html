@@ -10,210 +10,126 @@
   <style>* { margin:0; padding:0; box-sizing:border-box; } body { background:#0e1c15; }</style>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
-  <script>
-const {
-  useState,
-  useEffect,
-  useRef
-} = React;
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
 
 // ══════════════════════════════════════════════════════════════
 // Supabase 설정 — 본인 값으로 교체
 // ══════════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://buonjytmwdtghkfgkbei.supabase.co"; // ← 교체
-const SUPABASE_KEY = "sb_publishable_AvYEQnHpWjbtC8h8CCg6kw_sXDALn2h"; // ← 교체
+const SUPABASE_KEY = "sb_publishable_AvYEQnHpWjbtC8h8CCg6kw_sXDALn2h";                 // ← 교체
 // ══════════════════════════════════════════════════════════════
 
 // ── KST 날짜 헬퍼 ───────────────────────────────────────────────
-const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const toDay = () => localDateStr(new Date());
-const toYest = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return localDateStr(d);
-};
-const fmtDate = str => {
+const localDateStr = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const toDay  = () => localDateStr(new Date());
+const toYest = () => { const d = new Date(); d.setDate(d.getDate()-1); return localDateStr(d); };
+const fmtDate = (str) => {
   const d = new Date(str + "T00:00:00");
-  return `${d.getMonth() + 1}/${d.getDate()} (${["일", "월", "화", "수", "목", "금", "토"][d.getDay()]})`;
+  return `${d.getMonth()+1}/${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})`;
 };
 
 // ── 기간 구조 ────────────────────────────────────────────────────
-const SALON = "디퍼 언브랜딩살롱 1기";
-const NICKNAMES = ["솔담", "햇살", "스윗워러", "야간비행", "헤더", "단무지", "퍼핀"];
+const SALON     = "디퍼 언브랜딩살롱 1기";
+const NICKNAMES = ["솔담","햇살","스윗워러","야간비행","헤더","단무지","퍼핀"];
+
 const getTotalWeek = () => {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  if (now < new Date(2026, 3, 27)) return 1;
-  if (now < new Date(2026, 4, 4)) return 2;
-  if (now > new Date(2026, 6, 26)) return 14;
-  return Math.min(Math.floor((now - new Date(2026, 4, 4)) / 86400000 / 7) + 3, 14);
+  const now = new Date(); now.setHours(0,0,0,0);
+  if (now < new Date(2026,3,27)) return 1;
+  if (now < new Date(2026,4,4))  return 2;
+  if (now > new Date(2026,6,26)) return 14;
+  return Math.min(Math.floor((now - new Date(2026,4,4)) / 86400000 / 7) + 3, 14);
 };
-const getPhaseInfo = tw => {
-  if (tw === 1) return {
-    isPre: true,
-    label: "프리세션 1",
-    weekKey: "pre:1"
-  };
-  if (tw === 2) return {
-    isPre: true,
-    label: "프리세션 2",
-    weekKey: "pre:2"
-  };
-  const cw = tw - 2,
-    p = cw <= 4 ? "문법" : cw <= 8 ? "논리" : "수사";
-  return {
-    isPre: false,
-    currWeek: cw,
-    label: `${cw}주차 · ${p}`,
-    weekKey: String(cw)
-  };
+
+const getPhaseInfo = (tw) => {
+  if (tw === 1) return { isPre:true,  label:"프리세션 1", weekKey:"pre:1" };
+  if (tw === 2) return { isPre:true,  label:"프리세션 2", weekKey:"pre:2" };
+  const cw = tw - 2, p = cw<=4?"문법":cw<=8?"논리":"수사";
+  return { isPre:false, currWeek:cw, label:`${cw}주차 · ${p}`, weekKey:String(cw) };
 };
-const phaseLabelShort = tw => tw === 1 ? "프리1" : tw === 2 ? "프리2" : `${tw - 2}주`;
-const getWeekDates = tw => {
-  if (tw === 1) return ["2026-04-23", "2026-04-24", "2026-04-25", "2026-04-26"];
-  const base = tw === 2 ? new Date(2026, 3, 27) : (() => {
-    const d = new Date(2026, 4, 4);
-    d.setDate(d.getDate() + (tw - 3) * 7);
-    return d;
+
+const phaseLabelShort = (tw) => tw===1?"프리1":tw===2?"프리2":`${tw-2}주`;
+
+const getWeekDates = (tw) => {
+  if (tw === 1) return ["2026-04-23","2026-04-24","2026-04-25","2026-04-26"];
+  const base = tw===2 ? new Date(2026,3,27) : (() => {
+    const d = new Date(2026,4,4); d.setDate(d.getDate()+(tw-3)*7); return d;
   })();
-  return Array.from({
-    length: 7
-  }, (_, i) => {
-    const d = new Date(base);
-    d.setDate(d.getDate() + i);
-    return localDateStr(d);
+  return Array.from({length:7}, (_,i) => {
+    const d = new Date(base); d.setDate(d.getDate()+i); return localDateStr(d);
   });
 };
-const dateToWeekKey = dateStr => {
+
+const dateToWeekKey = (dateStr) => {
   const dt = new Date(dateStr + "T00:00:00");
-  if (dt < new Date(2026, 3, 23) || dt > new Date(2026, 6, 26)) return null;
-  if (dt < new Date(2026, 3, 27)) return "pre:1";
-  if (dt < new Date(2026, 4, 4)) return "pre:2";
-  return String(Math.min(Math.floor((dt - new Date(2026, 4, 4)) / 86400000 / 7) + 1, 12));
+  if (dt < new Date(2026,3,23) || dt > new Date(2026,6,26)) return null;
+  if (dt < new Date(2026,3,27)) return "pre:1";
+  if (dt < new Date(2026,4,4))  return "pre:2";
+  return String(Math.min(Math.floor((dt - new Date(2026,4,4)) / 86400000 / 7) + 1, 12));
 };
-const weekKeyRange = key => {
+
+const weekKeyRange = (key) => {
   if (!key) return null;
-  if (key === "pre:1") return {
-    s: "2026-04-23",
-    e: "2026-04-26"
-  };
-  if (key === "pre:2") return {
-    s: "2026-04-27",
-    e: "2026-05-03"
-  };
+  if (key === "pre:1") return { s:"2026-04-23", e:"2026-04-26" };
+  if (key === "pre:2") return { s:"2026-04-27", e:"2026-05-03" };
   const cw = parseInt(key);
-  const s = new Date(2026, 4, 4 + (cw - 1) * 7),
-    e = new Date(2026, 4, 10 + (cw - 1) * 7);
-  return {
-    s: localDateStr(s),
-    e: localDateStr(e)
-  };
+  const s = new Date(2026,4,4+(cw-1)*7), e = new Date(2026,4,10+(cw-1)*7);
+  return { s:localDateStr(s), e:localDateStr(e) };
 };
-const weekKeyLabel = key => {
+
+const weekKeyLabel = (key) => {
   if (!key) return "";
-  if (key === "pre:1") return "프리세션 1";
-  if (key === "pre:2") return "프리세션 2";
+  if (key==="pre:1") return "프리세션 1";
+  if (key==="pre:2") return "프리세션 2";
   return `${key}주차`;
 };
+
 const MP_XP = [0, 10, 20, 30];
 
 // ── 미션 ─────────────────────────────────────────────────────────
-const PRE_WEEKLY = [{
-  id: "publish",
-  label: "글쓰기 발행 1편+",
-  xp: 25,
-  ph: "발행한 글, 반응은…"
-}, {
-  id: "reading",
-  label: "독서 30분+",
-  xp: 15,
-  ph: "읽은 책, 기억할 문장…"
-}, {
-  id: "artist",
-  label: "아티스트 데이트",
-  xp: 30,
-  ph: "어디서 무엇을 했는지…"
-}, {
-  id: "unbrand",
-  label: "언브랜딩 질문",
-  xp: 20,
-  ph: "지우고 남은 것은…"
-}, {
-  id: "ai",
-  label: "AI 실험실",
-  xp: 25,
-  ph: "어떤 실험을 했는지…"
-}];
-const WEEKLY = [{
-  id: "publish",
-  label: "글쓰기 발행 1편+",
-  xp: 25,
-  ph: "발행한 글, 반응은…"
-}, {
-  id: "reading",
-  label: "독서 30분+",
-  xp: 15,
-  ph: "읽은 책, 기억할 문장…"
-}, {
-  id: "artist",
-  label: "아티스트 데이트",
-  xp: 30,
-  ph: "어디서 무엇을 했는지…"
-}, {
-  id: "zoom",
-  label: "줌 세션 참여",
-  xp: 20,
-  ph: "오늘 세션에서 남은 것…"
-}, {
-  id: "insight",
-  label: "인사이트 발표",
-  xp: 25,
-  ph: "발표하거나 나눈 것…"
-}, {
-  id: "unbrand",
-  label: "언브랜딩 질문",
-  xp: 20,
-  ph: "지우고 남은 것은…"
-}, {
-  id: "ai",
-  label: "AI 실험실",
-  xp: 25,
-  ph: "어떤 실험을 했는지…"
-}];
-const MAX_PRE_WXP = PRE_WEEKLY.reduce((s, m) => s + m.xp, 0);
-const MAX_WXP = WEEKLY.reduce((s, m) => s + m.xp, 0);
-const INIT_PRE_WK = () => Object.fromEntries([...PRE_WEEKLY.map(m => [m.id, false]), ...PRE_WEEKLY.map(m => [m.id + "Note", ""])]);
-const INIT_WK = () => Object.fromEntries([...WEEKLY.map(m => [m.id, false]), ...WEEKLY.map(m => [m.id + "Note", ""])]);
-const calcPreWXP = w => PRE_WEEKLY.reduce((s, m) => s + (w[m.id] ? m.xp : 0), 0);
-const calcWXP = w => WEEKLY.reduce((s, m) => s + (w[m.id] ? m.xp : 0), 0);
-const INIT_DAY = () => ({
-  mp: 0,
-  key: false,
-  gv: false,
-  mpNote: "",
-  keyNote: "",
-  gvNote: ""
-});
-const calcDXP = d => MP_XP[d.mp || 0] + (d.key ? 30 : 0) + (d.gv ? 10 : 0);
+const PRE_WEEKLY = [
+  { id:"publish", label:"글쓰기 발행 1편+", xp:25, ph:"발행한 글, 반응은…" },
+  { id:"reading", label:"독서 30분+",        xp:15, ph:"읽은 책, 기억할 문장…" },
+  { id:"artist",  label:"아티스트 데이트",   xp:30, ph:"어디서 무엇을 했는지…" },
+  { id:"unbrand", label:"언브랜딩 질문",      xp:20, ph:"지우고 남은 것은…" },
+  { id:"ai",      label:"AI 실험실",          xp:25, ph:"어떤 실험을 했는지…" },
+];
+const WEEKLY = [
+  { id:"publish", label:"글쓰기 발행 1편+", xp:25, ph:"발행한 글, 반응은…" },
+  { id:"reading", label:"독서 30분+",        xp:15, ph:"읽은 책, 기억할 문장…" },
+  { id:"artist",  label:"아티스트 데이트",   xp:30, ph:"어디서 무엇을 했는지…" },
+  { id:"zoom",    label:"줌 세션 참여",       xp:20, ph:"오늘 세션에서 남은 것…" },
+  { id:"insight", label:"인사이트 발표",      xp:25, ph:"발표하거나 나눈 것…" },
+  { id:"unbrand", label:"언브랜딩 질문",      xp:20, ph:"지우고 남은 것은…" },
+  { id:"ai",      label:"AI 실험실",          xp:25, ph:"어떤 실험을 했는지…" },
+];
+const MAX_PRE_WXP = PRE_WEEKLY.reduce((s,m)=>s+m.xp,0);
+const MAX_WXP     = WEEKLY.reduce((s,m)=>s+m.xp,0);
+const INIT_PRE_WK = ()=>Object.fromEntries([...PRE_WEEKLY.map(m=>[m.id,false]),...PRE_WEEKLY.map(m=>[m.id+"Note",""])]);
+const INIT_WK     = ()=>Object.fromEntries([...WEEKLY.map(m=>[m.id,false]),...WEEKLY.map(m=>[m.id+"Note",""])]);
+const calcPreWXP  = (w)=>PRE_WEEKLY.reduce((s,m)=>s+(w[m.id]?m.xp:0),0);
+const calcWXP     = (w)=>WEEKLY.reduce((s,m)=>s+(w[m.id]?m.xp:0),0);
+
+const INIT_DAY = ()=>({mp:0,key:false,gv:false,mpNote:"",keyNote:"",gvNote:""});
+const calcDXP  = (d)=>MP_XP[d.mp||0]+(d.key?30:0)+(d.gv?10:0);
 
 // ── Supabase REST API ────────────────────────────────────────────
-const sbFetch = async (table, method = "GET", body = null, filters = {}) => {
+const sbFetch = async (table, method="GET", body=null, filters={}) => {
   const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
-  Object.entries(filters).forEach(([k, v]) => url.searchParams.append(k, v));
+  Object.entries(filters).forEach(([k,v])=>url.searchParams.append(k,v));
   const headers = {
     "apikey": SUPABASE_KEY,
     "Authorization": `Bearer ${SUPABASE_KEY}`,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   };
-  if (method === "POST") headers["Prefer"] = "resolution=merge-duplicates,return=minimal";
-  const res = await fetch(url.toString(), {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
+  if (method==="POST") headers["Prefer"] = "resolution=merge-duplicates,return=minimal";
+  const res = await fetch(url.toString(),{method,headers,body:body?JSON.stringify(body):undefined});
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -225,11 +141,7 @@ const sbFetch = async (table, method = "GET", body = null, filters = {}) => {
 const loadDayRecord = async (name, date) => {
   if (name) {
     try {
-      const rows = await sbFetch("daily_records", "GET", null, {
-        name: `eq.${name}`,
-        date: `eq.${date}`,
-        select: "data"
-      });
+      const rows = await sbFetch("daily_records","GET",null,{name:`eq.${name}`,date:`eq.${date}`,select:"data"});
       if (rows?.length > 0) {
         localStorage.setItem(`dp:d:${date}`, JSON.stringify(rows[0].data));
         return rows[0].data;
@@ -244,15 +156,8 @@ const loadDayRecord = async (name, date) => {
 const saveDayRecord = async (name, date, data) => {
   localStorage.setItem(`dp:d:${date}`, JSON.stringify(data));
   if (!name) return;
-  try {
-    await sbFetch("daily_records", "POST", {
-      name,
-      date,
-      data
-    });
-  } catch (e) {
-    console.warn("saveDayRecord:", e);
-  }
+  try { await sbFetch("daily_records","POST",{name,date,data}); }
+  catch (e) { console.warn("saveDayRecord:", e); }
 };
 
 // ✅ 여러 날짜 한 번에 로드 (Supabase in.() 연산자로 쿼리 1회)
@@ -261,10 +166,10 @@ const loadWeekDays = async (name, dates) => {
   const map = {};
   if (name && dates.length > 0) {
     try {
-      const rows = await sbFetch("daily_records", "GET", null, {
+      const rows = await sbFetch("daily_records","GET",null,{
         name: `eq.${name}`,
         date: `in.(${dates.join(",")})`,
-        select: "date,data"
+        select: "date,data",
       });
       if (rows) rows.forEach(r => {
         localStorage.setItem(`dp:d:${r.date}`, JSON.stringify(r.data));
@@ -273,15 +178,9 @@ const loadWeekDays = async (name, dates) => {
     } catch {}
   }
   return dates.map(date => {
-    if (map[date]) return {
-      ...INIT_DAY(),
-      ...map[date]
-    };
+    if (map[date]) return { ...INIT_DAY(), ...map[date] };
     const cached = localStorage.getItem(`dp:d:${date}`);
-    return cached ? {
-      ...INIT_DAY(),
-      ...JSON.parse(cached)
-    } : null;
+    return cached ? { ...INIT_DAY(), ...JSON.parse(cached) } : null;
   });
 };
 
@@ -289,242 +188,159 @@ const loadWeekDays = async (name, dates) => {
 const loadWeekRecord = async (name, weekKey, initFn) => {
   if (name) {
     try {
-      const rows = await sbFetch("weekly_records", "GET", null, {
-        name: `eq.${name}`,
-        week_key: `eq.${weekKey}`,
-        select: "data"
-      });
+      const rows = await sbFetch("weekly_records","GET",null,{name:`eq.${name}`,week_key:`eq.${weekKey}`,select:"data"});
       if (rows?.length > 0) {
-        const d = {
-          ...initFn(),
-          ...rows[0].data
-        };
+        const d = { ...initFn(), ...rows[0].data };
         localStorage.setItem(`dp:w:${weekKey}`, JSON.stringify(d));
         return d;
       }
     } catch {}
   }
   const cached = localStorage.getItem(`dp:w:${weekKey}`);
-  return cached ? {
-    ...initFn(),
-    ...JSON.parse(cached)
-  } : initFn();
+  return cached ? { ...initFn(), ...JSON.parse(cached) } : initFn();
 };
 
 // 주간 미션 저장
 const saveWeekRecord = async (name, weekKey, data) => {
   localStorage.setItem(`dp:w:${weekKey}`, JSON.stringify(data));
   if (!name) return;
-  try {
-    await sbFetch("weekly_records", "POST", {
-      name,
-      week_key: weekKey,
-      data
-    });
-  } catch (e) {
-    console.warn("saveWeekRecord:", e);
-  }
+  try { await sbFetch("weekly_records","POST",{name,week_key:weekKey,data}); }
+  catch (e) { console.warn("saveWeekRecord:", e); }
 };
 
 // 유저 상태 (streak, gtxp) 로드
-const loadUserState = async name => {
+const loadUserState = async (name) => {
   if (!name) return null;
   try {
-    const rows = await sbFetch("user_state", "GET", null, {
-      name: `eq.${name}`,
-      select: "gtxp,streak,last_day"
-    });
+    const rows = await sbFetch("user_state","GET",null,{name:`eq.${name}`,select:"gtxp,streak,last_day"});
     return rows?.length > 0 ? rows[0] : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 };
 
 // 유저 상태 저장 (단일 책임: updateDay/updateWk에서만 호출)
 const saveUserState = async (name, gtxp, streak, lastDay) => {
   if (!name) return;
-  try {
-    await sbFetch("user_state", "POST", {
-      name,
-      gtxp,
-      streak,
-      last_day: lastDay
-    });
-  } catch (e) {
-    console.warn("saveUserState:", e);
-  }
+  try { await sbFetch("user_state","POST",{name,gtxp,streak,last_day:lastDay}); }
+  catch (e) { console.warn("saveUserState:", e); }
 };
 
 // 랭킹 저장
 const saveRank = async (date, name, xp) => {
   if (!name) return;
-  try {
-    await sbFetch("daily_rankings", "POST", {
-      date,
-      name,
-      xp,
-      ts: Date.now()
-    });
-  } catch (e) {
-    console.warn("saveRank:", e);
-  }
+  try { await sbFetch("daily_rankings","POST",{date,name,xp,ts:Date.now()}); }
+  catch (e) { console.warn("saveRank:", e); }
 };
 const saveWeekRank = async (weekKey, name, xp) => {
   if (!name) return;
-  try {
-    await sbFetch("weekly_rankings", "POST", {
-      week_key: weekKey,
-      name,
-      xp,
-      ts: Date.now()
-    });
-  } catch (e) {
-    console.warn("saveWeekRank:", e);
-  }
+  try { await sbFetch("weekly_rankings","POST",{week_key:weekKey,name,xp,ts:Date.now()}); }
+  catch (e) { console.warn("saveWeekRank:", e); }
 };
 
 // ── 앱 ──────────────────────────────────────────────────────────
 function App() {
   const TOTAL_WEEK = getTotalWeek();
-  const phase = getPhaseInfo(TOTAL_WEEK);
-  const IS_PRE = phase.isPre;
-  const WK_KEY = phase.weekKey;
-  const CURR_WEEK = phase.currWeek ?? null;
-  const activeWeekly = IS_PRE ? PRE_WEEKLY : WEEKLY;
-  const maxActiveWXP = IS_PRE ? MAX_PRE_WXP : MAX_WXP;
-  const initActiveWK = IS_PRE ? INIT_PRE_WK : INIT_WK;
+  const phase      = getPhaseInfo(TOTAL_WEEK);
+  const IS_PRE     = phase.isPre;
+  const WK_KEY     = phase.weekKey;
+  const CURR_WEEK  = phase.currWeek ?? null;
+
+  const activeWeekly  = IS_PRE ? PRE_WEEKLY : WEEKLY;
+  const maxActiveWXP  = IS_PRE ? MAX_PRE_WXP : MAX_WXP;
+  const initActiveWK  = IS_PRE ? INIT_PRE_WK : INIT_WK;
   const calcActiveWXP = IS_PRE ? calcPreWXP : calcWXP;
-  const [myName, setMyName] = useState("");
-  const [day, setDay] = useState(INIT_DAY());
-  const [wk, setWk] = useState(initActiveWK());
-  const [streak, setStreak] = useState(0);
-  const [gtxp, setGtxp] = useState(0);
-  const [weekTotalXP, setWeekTotalXP] = useState(0);
-  const [tab, setTab] = useState("day");
+
+  const [myName,       setMyName]       = useState("");
+  const [day,          setDay]          = useState(INIT_DAY());
+  const [wk,           setWk]           = useState(initActiveWK());
+  const [streak,       setStreak]       = useState(0);
+  const [gtxp,         setGtxp]         = useState(0);
+  const [weekTotalXP,  setWeekTotalXP]  = useState(0);
+  const [tab,          setTab]          = useState("day");
   const [histForceKey, setHistForceKey] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  const prevDXP = useRef(0);
-  const prevWXP = useRef(0);
-  const streakRef = useRef({
-    count: 0,
-    last: ""
-  });
+  const [loaded,       setLoaded]       = useState(false);
+  const prevDXP   = useRef(0);
+  const prevWXP   = useRef(0);
+  const streakRef = useRef({ count:0, last:"" });
+
   const DXP = calcDXP(day);
   const WXP = calcActiveWXP(wk);
 
   // 한 닉네임의 전체 데이터 로드 (Supabase 우선, localStorage 폴백)
   // ✅ 배치 쿼리로 주간 XP 계산 (7번 → 1번)
-  const loadAllData = async name => {
+  const loadAllData = async (name) => {
     const today = toDay();
 
     // 오늘 기록
     const ds_raw = await loadDayRecord(name, today);
-    const ds = ds_raw ? {
-      ...INIT_DAY(),
-      ...ds_raw
-    } : INIT_DAY();
+    const ds     = ds_raw ? { ...INIT_DAY(), ...ds_raw } : INIT_DAY();
 
     // 이번 주 미션
     const ws = await loadWeekRecord(name, WK_KEY, initActiveWK);
 
     // 유저 상태 (Supabase 우선 → localStorage 폴백)
     const state = await loadUserState(name);
-    let streakCount = 0,
-      lastDay = "",
-      gtxpVal = 0;
+    let streakCount = 0, lastDay = "", gtxpVal = 0;
     if (state) {
-      streakCount = state.streak || 0;
-      lastDay = state.last_day || "";
-      gtxpVal = state.gtxp || 0;
-      localStorage.setItem("dp:streak", JSON.stringify({
-        count: streakCount,
-        last: lastDay
-      }));
-      localStorage.setItem("dp:gtxp", String(gtxpVal));
+      streakCount = state.streak   || 0;
+      lastDay     = state.last_day || "";
+      gtxpVal     = state.gtxp    || 0;
+      localStorage.setItem("dp:streak", JSON.stringify({count:streakCount,last:lastDay}));
+      localStorage.setItem("dp:gtxp",   String(gtxpVal));
     } else {
       const s = localStorage.getItem("dp:streak");
-      if (s) {
-        const p = JSON.parse(s);
-        streakCount = p.count || 0;
-        lastDay = p.last || "";
-      }
+      if (s) { const p=JSON.parse(s); streakCount=p.count||0; lastDay=p.last||""; }
       const t = localStorage.getItem("dp:gtxp");
-      if (t) gtxpVal = parseInt(t) || 0;
+      if (t) gtxpVal = parseInt(t)||0;
     }
-    streakRef.current = {
-      count: streakCount,
-      last: lastDay
-    };
+    streakRef.current = { count:streakCount, last:lastDay };
 
     // ✅ 이번 주 나머지 날짜 배치 로드 (1번 쿼리)
-    const weekDates = getWeekDates(TOTAL_WEEK);
+    const weekDates  = getWeekDates(TOTAL_WEEK);
     const otherDates = weekDates.filter(d => d !== today);
     const historical = await loadWeekDays(name, otherDates);
     let wkDXP = calcDXP(ds); // 오늘치
-    historical.forEach(d => {
-      if (d) wkDXP += calcDXP(d);
-    });
+    historical.forEach(d => { if (d) wkDXP += calcDXP(d); });
     const wTotal = wkDXP + calcActiveWXP(ws);
-    return {
-      ds,
-      ws,
-      streakCount,
-      lastDay,
-      gtxpVal,
-      wTotal
-    };
+
+    return { ds, ws, streakCount, lastDay, gtxpVal, wTotal };
   };
+
   useEffect(() => {
     (async () => {
-      const nm = localStorage.getItem("dp:myname");
+      const nm   = localStorage.getItem("dp:myname");
       const name = nm || "";
       setMyName(name);
+
       if (name) {
-        const {
-          ds,
-          ws,
-          streakCount,
-          lastDay,
-          gtxpVal,
-          wTotal
-        } = await loadAllData(name);
+        const { ds, ws, streakCount, lastDay, gtxpVal, wTotal } = await loadAllData(name);
 
         // ✅ prevDXP/prevWXP 반드시 여기서 설정 (updateDay delta 계산 기준)
-        setDay(ds);
-        prevDXP.current = calcDXP(ds);
-        setWk(ws);
-        prevWXP.current = calcActiveWXP(ws);
+        setDay(ds);          prevDXP.current = calcDXP(ds);
+        setWk(ws);           prevWXP.current = calcActiveWXP(ws);
         setStreak(streakCount);
         setGtxp(gtxpVal);
         setWeekTotalXP(wTotal);
 
         // 랭킹 동기화 (오늘 데이터가 있으면 공유 랭킹 테이블 갱신)
         if (calcDXP(ds) > 0) await saveRank(toDay(), name, calcDXP(ds));
-        if (wTotal > 0) await saveWeekRank(WK_KEY, name, wTotal);
+        if (wTotal > 0)       await saveWeekRank(WK_KEY, name, wTotal);
       }
+
       setLoaded(true);
     })();
   }, []);
 
   // 닉네임 선택 후 (NameSetup → App 진입)
-  const saveName = async name => {
+  const saveName = async (name) => {
     localStorage.setItem("dp:myname", name);
     setMyName(name);
-    const {
-      ds,
-      ws,
-      streakCount,
-      lastDay,
-      gtxpVal,
-      wTotal
-    } = await loadAllData(name);
+
+    const { ds, ws, streakCount, lastDay, gtxpVal, wTotal } = await loadAllData(name);
 
     // ✅ 버그 수정: saveName에서도 prevDXP/prevWXP 설정해야 함
     // 미설정 시 기존 기기 데이터 복원 후 updateDay에서 delta가 잘못 계산됨
-    setDay(ds);
-    prevDXP.current = calcDXP(ds);
-    setWk(ws);
-    prevWXP.current = calcActiveWXP(ws);
+    setDay(ds);          prevDXP.current = calcDXP(ds);
+    setWk(ws);           prevWXP.current = calcActiveWXP(ws);
     setStreak(streakCount);
     setGtxp(gtxpVal);
     setWeekTotalXP(wTotal);
@@ -534,25 +350,21 @@ function App() {
   };
 
   // ✅ 단순화된 bumpStreak: 상태/localStorage만 관리, saveUserState는 updateDay가 담당
-  const bumpStreak = ndxp => {
+  const bumpStreak = (ndxp) => {
     if (prevDXP.current === 0 && ndxp > 0) {
       const cur = streakRef.current;
-      const nc = cur.last === toDay() ? cur.count : cur.last === toYest() ? cur.count + 1 : 1;
-      streakRef.current = {
-        count: nc,
-        last: toDay()
-      };
-      localStorage.setItem("dp:streak", JSON.stringify({
-        count: nc,
-        last: toDay()
-      }));
+      const nc  = cur.last===toDay()  ? cur.count
+                : cur.last===toYest() ? cur.count+1 : 1;
+      streakRef.current = { count:nc, last:toDay() };
+      localStorage.setItem("dp:streak", JSON.stringify({count:nc,last:toDay()}));
       setStreak(nc);
       return nc;
     }
     return streakRef.current.count;
   };
-  const updateDay = async nd => {
-    const ndxp = calcDXP(nd);
+
+  const updateDay = async (nd) => {
+    const ndxp  = calcDXP(nd);
     const delta = ndxp - prevDXP.current;
     setDay(nd);
     await saveDayRecord(myName, toDay(), nd); // ← Supabase + localStorage
@@ -570,8 +382,9 @@ function App() {
       await saveWeekRank(WK_KEY, myName, newWT);
     }
   };
-  const updateWk = async nw => {
-    const nwxp = calcActiveWXP(nw);
+
+  const updateWk = async (nw) => {
+    const nwxp  = calcActiveWXP(nw);
     const delta = nwxp - prevWXP.current;
     setWk(nw);
     await saveWeekRecord(myName, WK_KEY, nw); // ← Supabase + localStorage
@@ -586,1854 +399,883 @@ function App() {
       await saveWeekRank(WK_KEY, myName, newWT);
     }
   };
-  const navigateToHist = weekKey => {
+
+  const navigateToHist = (weekKey) => {
     setHistForceKey(weekKey);
     setTab("hist");
   };
-  if (!loaded) return /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.root,
-      alignItems: "center",
-      justifyContent: "center"
-    }
-  }, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: C.gold,
-      letterSpacing: 4
-    }
-  }, "\xB7\xB7\xB7"));
-  if (!myName) return /*#__PURE__*/React.createElement(NameSetup, {
-    onSave: saveName
-  });
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.root
-  }, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("div", {
-    style: S.header
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.salonName
-  }, SALON), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: C.dim
-    }
-  }, phase.label), /*#__PURE__*/React.createElement("div", {
-    style: S.streakBox
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.streakNum
-  }, streak), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      color: C.dim
-    }
-  }, " \uC5F0\uC18D")))), /*#__PURE__*/React.createElement("div", {
-    style: S.hero
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.dim,
-      marginBottom: 3
-    }
-  }, myName), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: C.dim
-    }
-  }, "\uC624\uB298 XP  "), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 16,
-      color: C.gold,
-      fontWeight: 600
-    }
-  }, DXP), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: C.dim
-    }
-  }, " / 70"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "right"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 30,
-      color: "#e8c98a",
-      lineHeight: 1
-    }
-  }, gtxp), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: C.dim,
-      letterSpacing: 2
-    }
-  }, "\uB204\uC801 XP"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "0 20px 12px"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.barBg
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.barFill,
-      width: `${Math.min(DXP / 70 * 100, 100)}%`
-    }
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      overflowY: "auto",
-      paddingBottom: 80
-    }
-  }, tab === "day" && /*#__PURE__*/React.createElement(DayTab, {
-    day: day,
-    DXP: DXP,
-    updateDay: updateDay
-  }), tab === "week" && /*#__PURE__*/React.createElement(WeekTab, {
-    wk: wk,
-    WXP: WXP,
-    maxWXP: maxActiveWXP,
-    phase: phase,
-    isPre: IS_PRE,
-    activeWeekly: activeWeekly,
-    TOTAL_WEEK: TOTAL_WEEK,
-    CURR_WEEK: CURR_WEEK,
-    updateWk: updateWk,
-    onNavToHist: navigateToHist
-  }), tab === "hist" && /*#__PURE__*/React.createElement(HistTab, {
-    streak: streak,
-    gtxp: gtxp,
-    myName: myName,
-    TOTAL_WEEK: TOTAL_WEEK,
-    CURR_WEEK: CURR_WEEK,
-    IS_PRE: IS_PRE,
-    forceKey: histForceKey,
-    onKeyConsumed: () => setHistForceKey(null)
-  }), tab === "rank" && /*#__PURE__*/React.createElement(DeeperTab, {
-    myName: myName,
-    weekTotalXP: weekTotalXP,
-    WK_KEY: WK_KEY
-  })), /*#__PURE__*/React.createElement("div", {
-    style: S.tabBar
-  }, [["day", "오늘"], ["week", "이번주"], ["hist", "기록"], ["rank", "deeper"]].map(([t, l]) => /*#__PURE__*/React.createElement("button", {
-    key: t,
-    onClick: () => setTab(t),
-    style: {
-      ...S.tabBtn,
-      color: tab === t ? C.gold : C.dim,
-      borderTop: `1.5px solid ${tab === t ? C.gold : "transparent"}`,
-      fontStyle: t === "rank" ? "italic" : "normal"
-    }
-  }, l))));
+
+
+
+  if (!loaded) return (
+    <div style={{...S.root, alignItems:"center", justifyContent:"center"}}>
+      <style>{CSS}</style>
+      <span style={{color:C.gold, letterSpacing:4}}>···</span>
+    </div>
+  );
+  if (!myName) return <NameSetup onSave={saveName}/>;
+
+  return (
+    <div style={S.root}>
+      <style>{CSS}</style>
+
+      <div style={S.header}>
+        <div style={S.salonName}>{SALON}</div>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <div style={{fontSize:10, color:C.dim}}>{phase.label}</div>
+          <div style={S.streakBox}>
+            <span style={S.streakNum}>{streak}</span>
+            <span style={{fontSize:10, color:C.dim}}> 연속</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={S.hero}>
+        <div>
+          <div style={{fontSize:12, color:C.dim, marginBottom:3}}>{myName}</div>
+          <div>
+            <span style={{fontSize:11, color:C.dim}}>오늘 XP  </span>
+            <span style={{fontSize:16, color:C.gold, fontWeight:600}}>{DXP}</span>
+            <span style={{fontSize:11, color:C.dim}}> / 70</span>
+          </div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:30, color:"#e8c98a", lineHeight:1}}>{gtxp}</div>
+          <div style={{fontSize:9, color:C.dim, letterSpacing:2}}>누적 XP</div>
+        </div>
+      </div>
+      <div style={{padding:"0 20px 12px"}}>
+        <div style={S.barBg}><div style={{...S.barFill, width:`${Math.min(DXP/70*100,100)}%`}}/></div>
+      </div>
+
+      <div style={{flex:1, overflowY:"auto", paddingBottom:80}}>
+        {tab==="day"  && <DayTab day={day} DXP={DXP} updateDay={updateDay}/>}
+        {tab==="week" && (
+          <WeekTab wk={wk} WXP={WXP} maxWXP={maxActiveWXP}
+            phase={phase} isPre={IS_PRE} activeWeekly={activeWeekly}
+            TOTAL_WEEK={TOTAL_WEEK} CURR_WEEK={CURR_WEEK}
+            updateWk={updateWk} onNavToHist={navigateToHist}/>
+        )}
+        {tab==="hist" && (
+          <HistTab streak={streak} gtxp={gtxp} myName={myName}
+            TOTAL_WEEK={TOTAL_WEEK} CURR_WEEK={CURR_WEEK} IS_PRE={IS_PRE}
+            forceKey={histForceKey} onKeyConsumed={()=>setHistForceKey(null)}/>
+        )}
+        {tab==="rank" && (
+          <DeeperTab myName={myName} weekTotalXP={weekTotalXP} WK_KEY={WK_KEY}/>
+        )}
+      </div>
+
+      <div style={S.tabBar}>
+        {[["day","오늘"],["week","이번주"],["hist","기록"],["rank","deeper"]].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{
+            ...S.tabBtn,
+            color: tab===t?C.gold:C.dim,
+            borderTop: `1.5px solid ${tab===t?C.gold:"transparent"}`,
+            fontStyle: t==="rank"?"italic":"normal",
+          }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── 닉네임 선택 ──────────────────────────────────────────────────
-function NameSetup({
-  onSave
-}) {
-  const [sel, setSel] = useState("");
+function NameSetup({ onSave }) {
+  const [sel,     setSel]     = useState("");
   const [loading, setLoading] = useState(false);
+
   const handleStart = async () => {
     if (!sel) return;
     setLoading(true);
     await onSave(sel);
     setLoading(false);
   };
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.root,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 32
-    }
-  }, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: "100%",
-      maxWidth: 320
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      letterSpacing: 3,
-      color: C.gold,
-      textTransform: "uppercase",
-      marginBottom: 24,
-      textAlign: "center"
-    }
-  }, SALON), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 20,
-      color: C.text,
-      marginBottom: 6,
-      textAlign: "center"
-    }
-  }, "\uB2C9\uB124\uC784\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.dim,
-      marginBottom: 24,
-      textAlign: "center",
-      lineHeight: 1.8
-    }
-  }, "\uAE30\uAE30\uB97C \uBC14\uAFD4\uB3C4 \uAC19\uC740 \uB2C9\uB124\uC784\uC73C\uB85C \uAE30\uB85D\uC774 \uBCF5\uC6D0\uB429\uB2C8\uB2E4."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 10,
-      marginBottom: 20
-    }
-  }, NICKNAMES.map(n => /*#__PURE__*/React.createElement("button", {
-    key: n,
-    onClick: () => setSel(n),
-    style: {
-      padding: "14px 10px",
-      border: "none",
-      borderRadius: 10,
-      cursor: "pointer",
-      fontFamily: "'Playfair Display', Georgia, serif",
-      fontSize: 14,
-      background: sel === n ? C.gold : "rgba(255,255,255,0.08)",
-      color: sel === n ? C.bg : C.mid,
-      outline: sel === n ? "none" : "1px solid rgba(201,169,110,0.3)",
-      transition: "all 0.2s",
-      transform: sel === n ? "scale(1.04)" : "scale(1)"
-    }
-  }, n))), /*#__PURE__*/React.createElement("button", {
-    onClick: handleStart,
-    disabled: !sel || loading,
-    style: {
-      width: "100%",
-      padding: "14px",
-      border: "none",
-      borderRadius: 10,
-      background: sel ? C.gold : "rgba(201,169,110,0.2)",
-      color: sel ? C.bg : C.dim,
-      fontSize: 14,
-      fontFamily: "'Playfair Display', Georgia, serif",
-      cursor: sel ? "pointer" : "default",
-      transition: "all 0.2s"
-    }
-  }, loading ? "기록 불러오는 중···" : "시작하기")));
+
+  return (
+    <div style={{...S.root, display:"flex", alignItems:"center", justifyContent:"center", padding:32}}>
+      <style>{CSS}</style>
+      <div style={{width:"100%", maxWidth:320}}>
+        <div style={{fontSize:9, letterSpacing:3, color:C.gold, textTransform:"uppercase", marginBottom:24, textAlign:"center"}}>{SALON}</div>
+        <div style={{fontSize:20, color:C.text, marginBottom:6, textAlign:"center"}}>닉네임을 선택해주세요</div>
+        <div style={{fontSize:12, color:C.dim, marginBottom:24, textAlign:"center", lineHeight:1.8}}>
+          기기를 바꿔도 같은 닉네임으로 기록이 복원됩니다.
+        </div>
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20}}>
+          {NICKNAMES.map(n=>(
+            <button key={n} onClick={()=>setSel(n)} style={{
+              padding:"14px 10px", border:"none", borderRadius:10, cursor:"pointer",
+              fontFamily:"'Playfair Display', Georgia, serif", fontSize:14,
+              background: sel===n?C.gold:"rgba(255,255,255,0.08)",
+              color: sel===n?C.bg:C.mid,
+              outline: sel===n?"none":"1px solid rgba(201,169,110,0.3)",
+              transition:"all 0.2s", transform: sel===n?"scale(1.04)":"scale(1)",
+            }}>{n}</button>
+          ))}
+        </div>
+        <button onClick={handleStart} disabled={!sel||loading} style={{
+          width:"100%", padding:"14px", border:"none", borderRadius:10,
+          background: sel?C.gold:"rgba(201,169,110,0.2)",
+          color: sel?C.bg:C.dim, fontSize:14,
+          fontFamily:"'Playfair Display', Georgia, serif",
+          cursor: sel?"pointer":"default", transition:"all 0.2s",
+        }}>
+          {loading ? "기록 불러오는 중···" : "시작하기"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ── 일간 탭 ──────────────────────────────────────────────────────
-function DayTab({
-  day,
-  DXP,
-  updateDay
-}) {
-  const mpTexts = ["", "한 페이지. 기분 좋은 출발.", "두 페이지. 깊게 더 깊게.", "세 페이지. 완전한 모닝."];
+function DayTab({ day, DXP, updateDay }) {
+  const mpTexts = ["","한 페이지. 기분 좋은 출발.","두 페이지. 깊게 더 깊게.","세 페이지. 완전한 모닝."];
   // 로컬 메모 state — 입력 중엔 여기만 바뀜. 저장 버튼 누르면 Supabase까지 저장
-  const [notes, setNotes] = useState({
-    mpNote: day.mpNote || "",
-    keyNote: day.keyNote || "",
-    gvNote: day.gvNote || ""
-  });
-  const [saved, setSaved] = useState("");
+  const [notes, setNotes] = useState({mpNote:day.mpNote||"", keyNote:day.keyNote||"", gvNote:day.gvNote||""});
+  const [saved,  setSaved]  = useState("");
 
   // day prop이 외부에서 바뀌면 (앱 시작 시 복원) 로컬 state도 맞춤
-  useEffect(() => {
-    setNotes({
-      mpNote: day.mpNote || "",
-      keyNote: day.keyNote || "",
-      gvNote: day.gvNote || ""
-    });
-  }, [day.mpNote, day.keyNote, day.gvNote]);
-  const handleSaveNotes = async field => {
-    await updateDay({
-      ...day,
-      ...notes
-    });
+  useEffect(()=>{
+    setNotes({mpNote:day.mpNote||"", keyNote:day.keyNote||"", gvNote:day.gvNote||""});
+  },[day.mpNote, day.keyNote, day.gvNote]);
+
+  const handleSaveNotes = async (field) => {
+    await updateDay({...day, ...notes});
     setSaved(field);
-    setTimeout(() => setSaved(""), 1500);
+    setTimeout(()=>setSaved(""), 1500);
   };
-  const SaveBtn = ({
-    field
-  }) => /*#__PURE__*/React.createElement("button", {
-    onClick: () => handleSaveNotes(field),
-    style: {
-      marginTop: 8,
-      padding: "6px 14px",
-      border: "none",
-      borderRadius: 20,
-      background: saved === field ? "rgba(201,169,110,0.2)" : "rgba(255,255,255,0.08)",
-      color: saved === field ? C.gold : C.dim,
-      fontSize: 11,
-      fontFamily: "'Playfair Display', Georgia, serif",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      letterSpacing: 0.5,
-      outline: `1px solid ${saved === field ? "rgba(201,169,110,0.5)" : "rgba(201,169,110,0.2)"}`
-    }
-  }, saved === field ? "저장됨 ✓" : "저장");
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.pad
-  }, /*#__PURE__*/React.createElement(DayCard, {
-    title: "\uBAA8\uB2DD\uD398\uC774\uC9C0",
-    sub: "\uC624\uB298 \uBA87 \uD398\uC774\uC9C0 \uC37C\uB098\uC694?",
-    xp: MP_XP[day.mp || 0],
-    checked: day.mp > 0
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 14
-    }
-  }, [0, 1, 2, 3].map(v => /*#__PURE__*/React.createElement("button", {
-    key: v,
-    onClick: () => updateDay({
-      ...day,
-      ...notes,
-      mp: v
-    }),
-    style: {
-      flex: 1,
-      padding: "14px 0 12px",
-      border: "none",
-      borderRadius: 8,
-      cursor: "pointer",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 3,
-      transition: "all 0.2s",
-      fontFamily: "'Playfair Display', Georgia, serif",
-      background: day.mp === v ? C.gold : "rgba(255,255,255,0.09)",
-      outline: day.mp === v ? "none" : "1px solid rgba(201,169,110,0.3)",
-      color: day.mp === v ? C.bg : day.mp > v ? C.gold : C.mid,
-      transform: day.mp === v ? "scale(1.04)" : "scale(1)"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 19,
-      fontWeight: day.mp === v ? 700 : 400
-    }
-  }, v === 0 ? "–" : `${v}p`), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      opacity: 0.8
-    }
-  }, v > 0 ? `+${MP_XP[v]}XP` : "")))), day.mp > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.mid,
-      marginBottom: 6
-    }
-  }, mpTexts[day.mp]), /*#__PURE__*/React.createElement("textarea", {
-    value: notes.mpNote,
-    onChange: e => setNotes(n => ({
-      ...n,
-      mpNote: e.target.value
-    })),
-    placeholder: "\uC624\uB298 \uC4F0\uBA74\uC11C \uB5A0\uC624\uB978 \uAC83\u2026",
-    style: S.noteArea,
-    rows: 2
-  }), /*#__PURE__*/React.createElement(SaveBtn, {
-    field: "mp"
-  }))), /*#__PURE__*/React.createElement(DayCard, {
-    title: "Key Scene",
-    sub: "\uCEE8\uC149 \u2014 \uAC00\uC7A5 \uC911\uC694\uD55C \uD55C \uAC00\uC9C0",
-    xp: 30,
-    checked: day.key,
-    onToggle: () => updateDay({
-      ...day,
-      ...notes,
-      key: !day.key
-    })
-  }, /*#__PURE__*/React.createElement("textarea", {
-    value: notes.keyNote,
-    onChange: e => setNotes(n => ({
-      ...n,
-      keyNote: e.target.value
-    })),
-    placeholder: "\uC624\uB298 \uC2E4\uC81C\uB85C \uD55C \uAC83\uC740\u2026",
-    style: {
-      ...S.noteArea,
-      marginTop: 12
-    },
-    rows: 3
-  }), /*#__PURE__*/React.createElement(SaveBtn, {
-    field: "key"
-  })), /*#__PURE__*/React.createElement(DayCard, {
-    title: "\uAC10\uC0AC\uC77C\uAE30",
-    sub: "\uC9E7\uAC8C, \uD558\uB098\uC529",
-    xp: 10,
-    checked: day.gv,
-    onToggle: () => updateDay({
-      ...day,
-      ...notes,
-      gv: !day.gv
-    })
-  }, /*#__PURE__*/React.createElement("textarea", {
-    value: notes.gvNote,
-    onChange: e => setNotes(n => ({
-      ...n,
-      gvNote: e.target.value
-    })),
-    placeholder: "\uAC10\uC0AC\uD55C \uAC83, \uBE44\uC804\uC5D0 \uB300\uD55C \uC0DD\uAC01\u2026",
-    style: {
-      ...S.noteArea,
-      marginTop: 12
-    },
-    rows: 3
-  }), /*#__PURE__*/React.createElement(SaveBtn, {
-    field: "gv"
-  })), DXP >= 70 && /*#__PURE__*/React.createElement("div", {
-    style: S.doneMsg
-  }, "\uC624\uB298 \uBAA8\uB4E0 \uBBF8\uC158 \uC644\uB8CC \u2726"));
+
+  const SaveBtn = ({field}) => (
+    <button onClick={()=>handleSaveNotes(field)} style={{
+      marginTop:8, padding:"6px 14px", border:"none", borderRadius:20,
+      background: saved===field?"rgba(201,169,110,0.2)":"rgba(255,255,255,0.08)",
+      color: saved===field?C.gold:C.dim, fontSize:11,
+      fontFamily:"'Playfair Display', Georgia, serif",
+      cursor:"pointer", transition:"all 0.2s", letterSpacing:0.5,
+      outline:`1px solid ${saved===field?"rgba(201,169,110,0.5)":"rgba(201,169,110,0.2)"}`,
+    }}>
+      {saved===field?"저장됨 ✓":"저장"}
+    </button>
+  );
+
+  return (
+    <div style={S.pad}>
+      <DayCard title="모닝페이지" sub="오늘 몇 페이지 썼나요?" xp={MP_XP[day.mp||0]} checked={day.mp>0}>
+        <div style={{display:"flex", gap:8, marginTop:14}}>
+          {[0,1,2,3].map(v=>(
+            <button key={v} onClick={()=>updateDay({...day,...notes,mp:v})} style={{
+              flex:1, padding:"14px 0 12px", border:"none", borderRadius:8, cursor:"pointer",
+              display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+              transition:"all 0.2s", fontFamily:"'Playfair Display', Georgia, serif",
+              background: day.mp===v?C.gold:"rgba(255,255,255,0.09)",
+              outline: day.mp===v?"none":"1px solid rgba(201,169,110,0.3)",
+              color: day.mp===v?C.bg:day.mp>v?C.gold:C.mid,
+              transform: day.mp===v?"scale(1.04)":"scale(1)",
+            }}>
+              <span style={{fontSize:19, fontWeight:day.mp===v?700:400}}>{v===0?"–":`${v}p`}</span>
+              <span style={{fontSize:10, opacity:0.8}}>{v>0?`+${MP_XP[v]}XP`:""}</span>
+            </button>
+          ))}
+        </div>
+        {day.mp>0&&(
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11, color:C.mid, marginBottom:6}}>{mpTexts[day.mp]}</div>
+            <textarea value={notes.mpNote} onChange={e=>setNotes(n=>({...n,mpNote:e.target.value}))}
+              placeholder="오늘 쓰면서 떠오른 것…" style={S.noteArea} rows={2}/>
+            <SaveBtn field="mp"/>
+          </div>
+        )}
+      </DayCard>
+
+      <DayCard title="Key Scene" sub="컨셉 — 가장 중요한 한 가지" xp={30} checked={day.key} onToggle={()=>updateDay({...day,...notes,key:!day.key})}>
+        <textarea value={notes.keyNote} onChange={e=>setNotes(n=>({...n,keyNote:e.target.value}))}
+          placeholder="오늘 실제로 한 것은…" style={{...S.noteArea,marginTop:12}} rows={3}/>
+        <SaveBtn field="key"/>
+      </DayCard>
+
+      <DayCard title="감사일기" sub="짧게, 하나씩" xp={10} checked={day.gv} onToggle={()=>updateDay({...day,...notes,gv:!day.gv})}>
+        <textarea value={notes.gvNote} onChange={e=>setNotes(n=>({...n,gvNote:e.target.value}))}
+          placeholder="감사한 것, 비전에 대한 생각…" style={{...S.noteArea,marginTop:12}} rows={3}/>
+        <SaveBtn field="gv"/>
+      </DayCard>
+
+      {DXP>=70&&<div style={S.doneMsg}>오늘 모든 미션 완료 ✦</div>}
+    </div>
+  );
 }
-function DayCard({
-  title,
-  sub,
-  xp,
-  checked,
-  onToggle,
-  children
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
+
+function DayCard({ title, sub, xp, checked, onToggle, children }) {
+  return (
+    <div style={{
       ...S.dayCard,
-      border: checked ? "1px solid rgba(201,169,110,0.4)" : "1px solid rgba(201,169,110,0.18)",
-      background: checked ? "rgba(201,169,110,0.08)" : C.surface
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 18,
-      color: checked ? C.gold : C.text
-    }
-  }, title), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.mid,
-      marginTop: 3
-    }
-  }, sub)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: checked ? C.gold : "rgba(201,169,110,0.55)",
-      fontWeight: 600
-    }
-  }, "+", xp, "XP"), onToggle && /*#__PURE__*/React.createElement("button", {
-    onClick: onToggle,
-    style: {
-      width: 30,
-      height: 30,
-      borderRadius: 7,
-      border: "none",
-      background: checked ? C.gold : "rgba(255,255,255,0.12)",
-      outline: checked ? "none" : "1.5px solid rgba(201,169,110,0.5)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      flexShrink: 0
-    }
-  }, checked && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: C.bg,
-      fontSize: 14,
-      fontWeight: 700
-    }
-  }, "\u2713")))), children);
+      border: checked?"1px solid rgba(201,169,110,0.4)":"1px solid rgba(201,169,110,0.18)",
+      background: checked?"rgba(201,169,110,0.08)":C.surface,
+    }}>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start"}}>
+        <div>
+          <div style={{fontSize:18, color:checked?C.gold:C.text}}>{title}</div>
+          <div style={{fontSize:11, color:C.mid, marginTop:3}}>{sub}</div>
+        </div>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <span style={{fontSize:11, color:checked?C.gold:"rgba(201,169,110,0.55)", fontWeight:600}}>+{xp}XP</span>
+          {onToggle&&(
+            <button onClick={onToggle} style={{
+              width:30, height:30, borderRadius:7, border:"none",
+              background: checked?C.gold:"rgba(255,255,255,0.12)",
+              outline: checked?"none":"1.5px solid rgba(201,169,110,0.5)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer", transition:"all 0.2s", flexShrink:0,
+            }}>
+              {checked&&<span style={{color:C.bg, fontSize:14, fontWeight:700}}>✓</span>}
+            </button>
+          )}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 // ── 주간 탭 ──────────────────────────────────────────────────────
-function WeekTab({
-  wk,
-  WXP,
-  maxWXP,
-  phase,
-  isPre,
-  activeWeekly,
-  TOTAL_WEEK,
-  CURR_WEEK,
-  updateWk,
-  onNavToHist
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.pad
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.secLbl
-  }, "\uC8FC\uAC04 \uBBF8\uC158"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 14,
-      color: C.gold,
-      fontWeight: 600
-    }
-  }, WXP, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: C.dim,
-      fontWeight: 400
-    }
-  }, " / ", maxWXP))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.barBg,
-      marginBottom: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.barFill,
-      width: `${Math.min(WXP / maxWXP * 100, 100)}%`,
-      background: C.green
-    }
-  })), activeWeekly.map(m => /*#__PURE__*/React.createElement("div", {
-    key: m.id,
-    style: {
-      ...S.dayCard,
-      padding: "14px 16px",
-      marginBottom: 10,
-      border: wk[m.id] ? "1px solid rgba(201,169,110,0.4)" : "1px solid rgba(201,169,110,0.15)",
-      background: wk[m.id] ? "rgba(201,169,110,0.08)" : C.surface
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      color: wk[m.id] ? C.gold : C.text
-    }
-  }, m.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: wk[m.id] ? C.gold : "rgba(201,169,110,0.55)",
-      fontWeight: 600
-    }
-  }, "+", m.xp), /*#__PURE__*/React.createElement("button", {
-    onClick: () => updateWk({
-      ...wk,
-      [m.id]: !wk[m.id]
-    }),
-    style: {
-      width: 28,
-      height: 28,
-      borderRadius: 6,
-      border: "none",
-      background: wk[m.id] ? C.gold : "rgba(255,255,255,0.12)",
-      outline: wk[m.id] ? "none" : "1.5px solid rgba(201,169,110,0.5)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "pointer",
-      transition: "all 0.2s"
-    }
-  }, wk[m.id] && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: C.bg,
-      fontSize: 12,
-      fontWeight: 700
-    }
-  }, "\u2713")))), /*#__PURE__*/React.createElement(NoteWithSave, {
-    value: wk[m.id + "Note"] || "",
-    placeholder: m.ph,
-    onSave: val => updateWk({
-      ...wk,
-      [m.id + "Note"]: val
-    })
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 18,
-      paddingTop: 16,
-      borderTop: "1px solid rgba(201,169,110,0.1)"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: C.dim,
-      letterSpacing: 2,
-      marginBottom: 10
-    }
-  }, "TIMELINE \xB7 \uB20C\uB7EC\uC11C \uAE30\uB85D \uBCF4\uAE30"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 5,
-      alignItems: "center"
-    }
-  }, [{
-    tw: 1,
-    l: "프리1",
-    key: "pre:1"
-  }, {
-    tw: 2,
-    l: "프리2",
-    key: "pre:2"
-  }].map(({
-    tw,
-    l,
-    key
-  }) => /*#__PURE__*/React.createElement("button", {
-    key: tw,
-    onClick: () => onNavToHist(key),
-    style: {
-      padding: "4px 10px",
-      borderRadius: 20,
-      fontSize: 9,
-      border: "none",
-      cursor: "pointer",
-      background: TOTAL_WEEK > tw ? C.gold : TOTAL_WEEK === tw ? C.green : "rgba(255,255,255,0.07)",
-      color: TOTAL_WEEK >= tw ? C.bg : C.mid,
-      transition: "all 0.2s",
-      fontFamily: "'Playfair Display', Georgia, serif"
-    }
-  }, l)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 1,
-      height: 12,
-      background: "rgba(201,169,110,0.25)",
-      margin: "0 3px"
-    }
-  }), Array.from({
-    length: 12
-  }, (_, i) => i + 1).map(w => /*#__PURE__*/React.createElement("button", {
-    key: w,
-    onClick: () => onNavToHist(String(w)),
-    style: {
-      width: 24,
-      height: 24,
-      borderRadius: "50%",
-      border: "none",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 8,
-      background: !isPre && w < CURR_WEEK ? C.gold : !isPre && w === CURR_WEEK ? C.green : "rgba(255,255,255,0.08)",
-      color: !isPre && w <= CURR_WEEK ? C.bg : C.dim,
-      outline: !isPre && w === CURR_WEEK ? `1.5px solid ${C.green}` : "none",
-      transition: "all 0.2s",
-      fontFamily: "'Playfair Display', Georgia, serif"
-    }
-  }, w))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: C.dim,
-      textAlign: "right",
-      marginTop: 10
-    }
-  }, "\uC218\uB8CC\uC2DD 7\uC6D4 25\uC77C(\uD1A0)")));
+function WeekTab({ wk, WXP, maxWXP, phase, isPre, activeWeekly, TOTAL_WEEK, CURR_WEEK, updateWk, onNavToHist }) {
+  return (
+    <div style={S.pad}>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+        <div style={S.secLbl}>주간 미션</div>
+        <span style={{fontSize:14, color:C.gold, fontWeight:600}}>
+          {WXP}<span style={{fontSize:11, color:C.dim, fontWeight:400}}> / {maxWXP}</span>
+        </span>
+      </div>
+      <div style={{...S.barBg, marginBottom:18}}>
+        <div style={{...S.barFill, width:`${Math.min(WXP/maxWXP*100,100)}%`, background:C.green}}/>
+      </div>
+
+      {activeWeekly.map(m=>(
+        <div key={m.id} style={{
+          ...S.dayCard, padding:"14px 16px", marginBottom:10,
+          border: wk[m.id]?"1px solid rgba(201,169,110,0.4)":"1px solid rgba(201,169,110,0.15)",
+          background: wk[m.id]?"rgba(201,169,110,0.08)":C.surface,
+        }}>
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <div style={{fontSize:14, color:wk[m.id]?C.gold:C.text}}>{m.label}</div>
+            <div style={{display:"flex", alignItems:"center", gap:8}}>
+              <span style={{fontSize:11, color:wk[m.id]?C.gold:"rgba(201,169,110,0.55)", fontWeight:600}}>+{m.xp}</span>
+              <button onClick={()=>updateWk({...wk,[m.id]:!wk[m.id]})} style={{
+                width:28, height:28, borderRadius:6, border:"none",
+                background: wk[m.id]?C.gold:"rgba(255,255,255,0.12)",
+                outline: wk[m.id]?"none":"1.5px solid rgba(201,169,110,0.5)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                cursor:"pointer", transition:"all 0.2s",
+              }}>
+                {wk[m.id]&&<span style={{color:C.bg, fontSize:12, fontWeight:700}}>✓</span>}
+              </button>
+            </div>
+          </div>
+          <NoteWithSave
+            value={wk[m.id+"Note"]||""}
+            placeholder={m.ph}
+            onSave={(val)=>updateWk({...wk,[m.id+"Note"]:val})}
+          />
+        </div>
+      ))}
+
+      <div style={{marginTop:18, paddingTop:16, borderTop:"1px solid rgba(201,169,110,0.1)"}}>
+        <div style={{fontSize:9, color:C.dim, letterSpacing:2, marginBottom:10}}>TIMELINE · 눌러서 기록 보기</div>
+        <div style={{display:"flex", flexWrap:"wrap", gap:5, alignItems:"center"}}>
+          {[{tw:1,l:"프리1",key:"pre:1"},{tw:2,l:"프리2",key:"pre:2"}].map(({tw,l,key})=>(
+            <button key={tw} onClick={()=>onNavToHist(key)} style={{
+              padding:"4px 10px", borderRadius:20, fontSize:9, border:"none", cursor:"pointer",
+              background: TOTAL_WEEK>tw?C.gold:TOTAL_WEEK===tw?C.green:"rgba(255,255,255,0.07)",
+              color: TOTAL_WEEK>=tw?C.bg:C.mid,
+              transition:"all 0.2s", fontFamily:"'Playfair Display', Georgia, serif",
+            }}>{l}</button>
+          ))}
+          <div style={{width:1, height:12, background:"rgba(201,169,110,0.25)", margin:"0 3px"}}/>
+          {Array.from({length:12},(_,i)=>i+1).map(w=>(
+            <button key={w} onClick={()=>onNavToHist(String(w))} style={{
+              width:24, height:24, borderRadius:"50%", border:"none", cursor:"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:8,
+              background: !isPre&&w<CURR_WEEK?C.gold:!isPre&&w===CURR_WEEK?C.green:"rgba(255,255,255,0.08)",
+              color: !isPre&&w<=CURR_WEEK?C.bg:C.dim,
+              outline: !isPre&&w===CURR_WEEK?`1.5px solid ${C.green}`:"none",
+              transition:"all 0.2s", fontFamily:"'Playfair Display', Georgia, serif",
+            }}>{w}</button>
+          ))}
+        </div>
+        <div style={{fontSize:10, color:C.dim, textAlign:"right", marginTop:10}}>수료식 7월 25일(토)</div>
+      </div>
+    </div>
+  );
 }
 
 // ── 기록 탭 ──────────────────────────────────────────────────────
-function HistTab({
-  streak,
-  gtxp,
-  myName,
-  TOTAL_WEEK,
-  CURR_WEEK,
-  IS_PRE,
-  forceKey,
-  onKeyConsumed
-}) {
-  const weekOptions = [{
-    key: "pre:1",
-    label: "프리세션 1",
-    tw: 1,
-    isPre: true
-  }, {
-    key: "pre:2",
-    label: "프리세션 2",
-    tw: 2,
-    isPre: true
-  }, ...Array.from({
-    length: 12
-  }, (_, i) => {
-    const cw = i + 1,
-      ph = cw <= 4 ? "문법" : cw <= 8 ? "논리" : "수사";
-    return {
-      key: String(cw),
-      label: `${cw}주차`,
-      tw: cw + 2,
-      isPre: false,
-      ph
-    };
-  })];
-  const defaultKey = IS_PRE ? `pre:${TOTAL_WEEK}` : String(CURR_WEEK ?? 1);
-  const [selKey, setSelKey] = useState(defaultKey);
+function HistTab({ streak, gtxp, myName, TOTAL_WEEK, CURR_WEEK, IS_PRE, forceKey, onKeyConsumed }) {
+  const weekOptions = [
+    {key:"pre:1",label:"프리세션 1",tw:1,isPre:true},
+    {key:"pre:2",label:"프리세션 2",tw:2,isPre:true},
+    ...Array.from({length:12},(_,i)=>{
+      const cw=i+1,ph=cw<=4?"문법":cw<=8?"논리":"수사";
+      return{key:String(cw),label:`${cw}주차`,tw:cw+2,isPre:false,ph};
+    }),
+  ];
+
+  const defaultKey = IS_PRE?`pre:${TOTAL_WEEK}`:String(CURR_WEEK??1);
+  const [selKey,  setSelKey]  = useState(defaultKey);
   const [dayRecs, setDayRecs] = useState([]);
-  const [wkRec, setWkRec] = useState(null);
+  const [wkRec,   setWkRec]   = useState(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    if (forceKey) {
-      setSelKey(forceKey);
-      onKeyConsumed?.();
-    }
-  }, [forceKey]);
-  const selOpt = weekOptions.find(o => o.key === selKey) ?? weekOptions[0];
-  const activeWeekly = selOpt?.isPre ? PRE_WEEKLY : WEEKLY;
-  const calcXP = selOpt?.isPre ? calcPreWXP : calcWXP;
-  const maxXP = selOpt?.isPre ? MAX_PRE_WXP : MAX_WXP;
-  const initWkFn = selOpt?.isPre ? INIT_PRE_WK : INIT_WK;
-  useEffect(() => {
+
+  useEffect(()=>{
+    if (forceKey) { setSelKey(forceKey); onKeyConsumed?.(); }
+  },[forceKey]);
+
+  const selOpt       = weekOptions.find(o=>o.key===selKey)??weekOptions[0];
+  const activeWeekly = selOpt?.isPre?PRE_WEEKLY:WEEKLY;
+  const calcXP       = selOpt?.isPre?calcPreWXP:calcWXP;
+  const maxXP        = selOpt?.isPre?MAX_PRE_WXP:MAX_WXP;
+  const initWkFn     = selOpt?.isPre?INIT_PRE_WK:INIT_WK;
+
+  useEffect(()=>{
     if (!selOpt) return;
-    (async () => {
+    (async()=>{
       setLoading(true);
       const dates = getWeekDates(selOpt.tw);
       // ✅ 배치 로드로 성능 개선
       const dayData = await loadWeekDays(myName, dates);
-      setDayRecs(dates.map((date, i) => ({
-        date,
-        d: dayData[i]
-      })));
+      setDayRecs(dates.map((date,i)=>({date, d:dayData[i]})));
       const ws = await loadWeekRecord(myName, selOpt.key, initWkFn);
       setWkRec(ws);
       setLoading(false);
     })();
-  }, [selKey, myName]);
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.pad
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr 1fr",
-      gap: 10,
-      marginBottom: 20
-    }
-  }, [[streak, "연속 일수"], [gtxp, "누적 XP"], [phaseLabelShort(TOTAL_WEEK), "현재"]].map(([v, l]) => /*#__PURE__*/React.createElement("div", {
-    key: l,
-    style: S.statCard
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 24,
-      color: C.gold,
-      lineHeight: 1
-    }
-  }, v), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: C.mid,
-      letterSpacing: 1.5,
-      marginTop: 5
-    }
-  }, l)))), /*#__PURE__*/React.createElement("div", {
-    style: S.secLbl
-  }, "\uC8FC\uCC28 \uC120\uD0DD"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 7,
-      marginBottom: 20
-    }
-  }, weekOptions.map(opt => /*#__PURE__*/React.createElement("button", {
-    key: opt.key,
-    onClick: () => setSelKey(opt.key),
-    style: {
-      padding: "6px 13px",
-      borderRadius: 20,
-      border: "none",
-      cursor: "pointer",
-      fontFamily: "'Playfair Display', Georgia, serif",
-      fontSize: 12,
-      background: selKey === opt.key ? C.gold : opt.isPre ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.08)",
-      color: selKey === opt.key ? C.bg : opt.isPre ? C.gold : C.mid,
-      outline: selKey === opt.key ? "none" : opt.isPre ? "1px solid rgba(201,169,110,0.4)" : "1px solid rgba(201,169,110,0.22)",
-      transition: "all 0.2s"
-    }
-  }, opt.label))), loading && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: C.dim,
-      textAlign: "center",
-      padding: 30
-    }
-  }, "\xB7\xB7\xB7"), !loading && selOpt && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: C.surface,
-      borderRadius: 12,
-      border: "1px solid rgba(201,169,110,0.2)",
-      padding: "12px 16px",
-      marginBottom: 14,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: C.gold
-    }
-  }, selOpt.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "right"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.dim
-    }
-  }, "\uC8FC\uAC04 XP"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 18,
-      color: C.gold
-    }
-  }, wkRec ? calcXP(wkRec) : 0, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: C.dim
-    }
-  }, " / ", maxXP)))), /*#__PURE__*/React.createElement("div", {
-    style: S.secLbl
-  }, "\uC77C\uAC04 \uAE30\uB85D"), dayRecs.map(({
-    date,
-    d
-  }) => {
-    const xp = d ? calcDXP(d) : 0,
-      hasData = d && xp > 0;
-    return /*#__PURE__*/React.createElement("div", {
-      key: date,
-      style: {
-        background: hasData ? C.surface : "rgba(255,255,255,0.02)",
-        border: hasData ? "1px solid rgba(201,169,110,0.2)" : "1px solid rgba(255,255,255,0.05)",
-        borderRadius: 10,
-        padding: "12px 14px",
-        marginBottom: 8
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: hasData ? 10 : 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: hasData ? C.gold : C.dim
-      }
-    }, fmtDate(date)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: hasData ? C.gold : "rgba(201,169,110,0.4)"
-      }
-    }, xp > 0 ? `${xp} XP` : "기록 없음")), hasData && /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        gap: 8
-      }
-    }, d.mp > 0 && /*#__PURE__*/React.createElement(NoteItem, {
-      label: `모닝페이지 ${d.mp}p`,
-      note: d.mpNote
-    }), d.key && /*#__PURE__*/React.createElement(NoteItem, {
-      label: "Key Scene",
-      note: d.keyNote
-    }), d.gv && /*#__PURE__*/React.createElement(NoteItem, {
-      label: "\uAC10\uC0AC\uC77C\uAE30",
-      note: d.gvNote
-    })));
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.secLbl,
-      marginTop: 18
-    }
-  }, "\uC8FC\uAC04 \uBBF8\uC158"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: C.surface,
-      borderRadius: 12,
-      border: "1px solid rgba(201,169,110,0.18)",
-      overflow: "hidden"
-    }
-  }, activeWeekly.map((m, i) => {
-    const checked = !!wkRec?.[m.id];
-    return /*#__PURE__*/React.createElement("div", {
-      key: m.id,
-      style: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "13px 16px",
-        borderBottom: i < activeWeekly.length - 1 ? "1px solid rgba(201,169,110,0.08)" : "none",
-        background: checked ? "rgba(201,169,110,0.05)" : "transparent"
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 12
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 22,
-        height: 22,
-        borderRadius: 6,
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: checked ? C.gold : "rgba(255,255,255,0.07)",
-        border: checked ? "none" : "1px solid rgba(201,169,110,0.28)"
-      }
-    }, checked && /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: C.bg,
-        fontSize: 11,
-        fontWeight: 700
-      }
-    }, "\u2713")), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 13,
-        color: checked ? C.text : C.dim
-      }
-    }, m.label)), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        fontWeight: 600,
-        color: checked ? C.gold : "rgba(201,169,110,0.28)"
-      }
-    }, checked ? `+${m.xp}XP` : ""));
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "11px 16px",
-      borderTop: "1px solid rgba(201,169,110,0.15)",
-      display: "flex",
-      justifyContent: "flex-end",
-      alignItems: "center",
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: C.dim
-    }
-  }, "\uC8FC\uAC04 \uBBF8\uC158 \uD569\uACC4"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 14,
-      color: C.gold,
-      fontWeight: 600
-    }
-  }, wkRec ? calcXP(wkRec) : 0), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: C.dim
-    }
-  }, "/ ", maxXP, " XP")))));
+  },[selKey, myName]);
+
+  return (
+    <div style={S.pad}>
+      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:20}}>
+        {[[streak,"연속 일수"],[gtxp,"누적 XP"],[phaseLabelShort(TOTAL_WEEK),"현재"]].map(([v,l])=>(
+          <div key={l} style={S.statCard}>
+            <div style={{fontSize:24, color:C.gold, lineHeight:1}}>{v}</div>
+            <div style={{fontSize:9, color:C.mid, letterSpacing:1.5, marginTop:5}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={S.secLbl}>주차 선택</div>
+      <div style={{display:"flex", flexWrap:"wrap", gap:7, marginBottom:20}}>
+        {weekOptions.map(opt=>(
+          <button key={opt.key} onClick={()=>setSelKey(opt.key)} style={{
+            padding:"6px 13px", borderRadius:20, border:"none", cursor:"pointer",
+            fontFamily:"'Playfair Display', Georgia, serif", fontSize:12,
+            background: selKey===opt.key?C.gold:opt.isPre?"rgba(201,169,110,0.12)":"rgba(255,255,255,0.08)",
+            color: selKey===opt.key?C.bg:opt.isPre?C.gold:C.mid,
+            outline: selKey===opt.key?"none":opt.isPre?"1px solid rgba(201,169,110,0.4)":"1px solid rgba(201,169,110,0.22)",
+            transition:"all 0.2s",
+          }}>{opt.label}</button>
+        ))}
+      </div>
+
+      {loading&&<div style={{color:C.dim, textAlign:"center", padding:30}}>···</div>}
+
+      {!loading&&selOpt&&(<>
+        <div style={{
+          background:C.surface, borderRadius:12, border:"1px solid rgba(201,169,110,0.2)",
+          padding:"12px 16px", marginBottom:14,
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+        }}>
+          <div style={{fontSize:13, color:C.gold}}>{selOpt.label}</div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:11, color:C.dim}}>주간 XP</div>
+            <div style={{fontSize:18, color:C.gold}}>
+              {wkRec?calcXP(wkRec):0}
+              <span style={{fontSize:11, color:C.dim}}> / {maxXP}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={S.secLbl}>일간 기록</div>
+        {dayRecs.map(({date,d})=>{
+          const xp=d?calcDXP(d):0, hasData=d&&xp>0;
+          return(
+            <div key={date} style={{
+              background: hasData?C.surface:"rgba(255,255,255,0.02)",
+              border: hasData?"1px solid rgba(201,169,110,0.2)":"1px solid rgba(255,255,255,0.05)",
+              borderRadius:10, padding:"12px 14px", marginBottom:8,
+            }}>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:hasData?10:0}}>
+                <div style={{fontSize:12, color:hasData?C.gold:C.dim}}>{fmtDate(date)}</div>
+                <div style={{fontSize:11, color:hasData?C.gold:"rgba(201,169,110,0.4)"}}>
+                  {xp>0?`${xp} XP`:"기록 없음"}
+                </div>
+              </div>
+              {hasData&&(
+                <div style={{display:"flex", flexDirection:"column", gap:8}}>
+                  {d.mp>0&&<NoteItem label={`모닝페이지 ${d.mp}p`} note={d.mpNote}/>}
+                  {d.key&&<NoteItem label="Key Scene" note={d.keyNote}/>}
+                  {d.gv&&<NoteItem label="감사일기" note={d.gvNote}/>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div style={{...S.secLbl, marginTop:18}}>주간 미션</div>
+        <div style={{background:C.surface, borderRadius:12, border:"1px solid rgba(201,169,110,0.18)", overflow:"hidden"}}>
+          {activeWeekly.map((m,i)=>{
+            const checked=!!(wkRec?.[m.id]);
+            return(
+              <div key={m.id} style={{
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                padding:"13px 16px",
+                borderBottom:i<activeWeekly.length-1?"1px solid rgba(201,169,110,0.08)":"none",
+                background:checked?"rgba(201,169,110,0.05)":"transparent",
+              }}>
+                <div style={{display:"flex", alignItems:"center", gap:12}}>
+                  <div style={{
+                    width:22, height:22, borderRadius:6, flexShrink:0,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    background:checked?C.gold:"rgba(255,255,255,0.07)",
+                    border:checked?"none":"1px solid rgba(201,169,110,0.28)",
+                  }}>
+                    {checked&&<span style={{color:C.bg, fontSize:11, fontWeight:700}}>✓</span>}
+                  </div>
+                  <span style={{fontSize:13, color:checked?C.text:C.dim}}>{m.label}</span>
+                </div>
+                <span style={{fontSize:11, fontWeight:600, color:checked?C.gold:"rgba(201,169,110,0.28)"}}>
+                  {checked?`+${m.xp}XP`:""}
+                </span>
+              </div>
+            );
+          })}
+          <div style={{
+            padding:"11px 16px", borderTop:"1px solid rgba(201,169,110,0.15)",
+            display:"flex", justifyContent:"flex-end", alignItems:"center", gap:6,
+          }}>
+            <span style={{fontSize:11, color:C.dim}}>주간 미션 합계</span>
+            <span style={{fontSize:14, color:C.gold, fontWeight:600}}>{wkRec?calcXP(wkRec):0}</span>
+            <span style={{fontSize:11, color:C.dim}}>/ {maxXP} XP</span>
+          </div>
+        </div>
+      </>)}
+    </div>
+  );
 }
 
 // 메모 입력 + 저장 버튼 공통 컴포넌트
-function NoteWithSave({
-  value,
-  placeholder,
-  onSave
-}) {
+function NoteWithSave({ value, placeholder, onSave }) {
   const [text, setText] = useState(value);
   const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    setText(value);
-  }, [value]);
+
+  useEffect(()=>{ setText(value); }, [value]);
+
   const handleSave = () => {
     onSave(text);
     setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    setTimeout(()=>setSaved(false), 1500);
   };
-  return /*#__PURE__*/React.createElement("div", {
-    onClick: e => e.stopPropagation()
-  }, /*#__PURE__*/React.createElement("textarea", {
-    value: text,
-    onChange: e => setText(e.target.value),
-    placeholder: placeholder,
-    style: {
-      ...S.noteArea,
-      marginTop: 10
-    },
-    rows: 2
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: handleSave,
-    style: {
-      marginTop: 8,
-      padding: "6px 14px",
-      border: "none",
-      borderRadius: 20,
-      background: saved ? "rgba(201,169,110,0.2)" : "rgba(255,255,255,0.08)",
-      color: saved ? C.gold : C.dim,
-      fontSize: 11,
-      fontFamily: "'Playfair Display', Georgia, serif",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      letterSpacing: 0.5,
-      outline: `1px solid ${saved ? "rgba(201,169,110,0.5)" : "rgba(201,169,110,0.2)"}`
-    }
-  }, saved ? "저장됨 ✓" : "저장"));
+
+  return (
+    <div onClick={e=>e.stopPropagation()}>
+      <textarea value={text} onChange={e=>setText(e.target.value)}
+        placeholder={placeholder} style={{...S.noteArea,marginTop:10}} rows={2}/>
+      <button onClick={handleSave} style={{
+        marginTop:8, padding:"6px 14px", border:"none", borderRadius:20,
+        background: saved?"rgba(201,169,110,0.2)":"rgba(255,255,255,0.08)",
+        color: saved?C.gold:C.dim, fontSize:11,
+        fontFamily:"'Playfair Display', Georgia, serif",
+        cursor:"pointer", transition:"all 0.2s", letterSpacing:0.5,
+        outline:`1px solid ${saved?"rgba(201,169,110,0.5)":"rgba(201,169,110,0.2)"}`,
+      }}>
+        {saved?"저장됨 ✓":"저장"}
+      </button>
+    </div>
+  );
 }
-function NoteItem({
-  label,
-  note
-}) {
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      marginBottom: 3
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 5,
-      height: 5,
-      borderRadius: "50%",
-      background: C.gold,
-      flexShrink: 0,
-      display: "inline-block"
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      color: C.mid,
-      letterSpacing: 0.5
-    }
-  }, label)), note ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: C.text,
-      lineHeight: 1.8,
-      paddingLeft: 11,
-      borderLeft: "2px solid rgba(201,169,110,0.28)"
-    }
-  }, note) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "rgba(240,235,224,0.35)",
-      fontStyle: "italic",
-      paddingLeft: 11
-    }
-  }, "\uBA54\uBAA8 \uC5C6\uC74C"));
+
+function NoteItem({ label, note }) {
+  return (
+    <div>
+      <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:3}}>
+        <span style={{width:5, height:5, borderRadius:"50%", background:C.gold, flexShrink:0, display:"inline-block"}}/>
+        <span style={{fontSize:10, color:C.mid, letterSpacing:0.5}}>{label}</span>
+      </div>
+      {note
+        ?<div style={{fontSize:13, color:C.text, lineHeight:1.8, paddingLeft:11, borderLeft:"2px solid rgba(201,169,110,0.28)"}}>{note}</div>
+        :<div style={{fontSize:12, color:"rgba(240,235,224,0.35)", fontStyle:"italic", paddingLeft:11}}>메모 없음</div>
+      }
+    </div>
+  );
 }
 
 // ── deeper 탭 ────────────────────────────────────────────────────
-function DeeperTab({
-  myName,
-  weekTotalXP,
-  WK_KEY
-}) {
-  const todayStr = toDay();
-  const now = new Date();
+function DeeperTab({ myName, weekTotalXP, WK_KEY }) {
+  const todayStr  = toDay();
+  const now       = new Date();
   const initWkKey = dateToWeekKey(todayStr) || WK_KEY;
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
-  const [selDate, setSelDate] = useState(todayStr);
-  const [selWeekKey, setSelWeekKey] = useState(initWkKey);
-  const [rankMode, setRankMode] = useState("daily");
-  const [ranks, setRanks] = useState([]);
-  const [rankLoad, setRankLoad] = useState(false);
-  const [rankError, setRankError] = useState(false);
-  const [rankLoaded, setRankLoaded] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [editDay, setEditDay] = useState(null);
-  const [editWk, setEditWk] = useState(null);
-  const [editLoad, setEditLoad] = useState(false);
-  const [editSaved, setEditSaved] = useState(false);
-  const CAL_START = new Date(2026, 3, 23);
-  const CAL_END = new Date(2026, 6, 25);
-  const canPrev = !(year === 2026 && month === 3);
-  const canNext = !(year === 2026 && month === 6);
+
+  const [year,       setYear]      = useState(now.getFullYear());
+  const [month,      setMonth]     = useState(now.getMonth());
+  const [selDate,    setSelDate]   = useState(todayStr);
+  const [selWeekKey, setSelWeekKey]= useState(initWkKey);
+  const [rankMode,   setRankMode]  = useState("daily");
+  const [ranks,      setRanks]     = useState([]);
+  const [rankLoad,   setRankLoad]  = useState(false);
+  const [rankError,  setRankError] = useState(false);
+  const [rankLoaded, setRankLoaded]= useState(false);
+  const [showEdit,   setShowEdit]  = useState(false);
+  const [editDay,    setEditDay]   = useState(null);
+  const [editWk,     setEditWk]    = useState(null);
+  const [editLoad,   setEditLoad]  = useState(false);
+  const [editSaved,  setEditSaved] = useState(false);
+
+  const CAL_START = new Date(2026,3,23);
+  const CAL_END   = new Date(2026,6,25);
+  const canPrev   = !(year===2026&&month===3);
+  const canNext   = !(year===2026&&month===6);
+
   const prevMonth = () => {
     if (!canPrev) return;
-    if (month === 0) {
-      setYear(y => y - 1);
-      setMonth(11);
-    } else setMonth(m => m - 1);
+    if (month===0) { setYear(y=>y-1); setMonth(11); } else setMonth(m=>m-1);
   };
   const nextMonth = () => {
     if (!canNext) return;
-    if (month === 11) {
-      setYear(y => y + 1);
-      setMonth(0);
-    } else setMonth(m => m + 1);
+    if (month===11) { setYear(y=>y+1); setMonth(0); } else setMonth(m=>m+1);
   };
+
   const loadRankings = async (date, weekKey, mode) => {
-    setRankLoad(true);
-    setRankError(false);
+    setRankLoad(true); setRankError(false);
     try {
-      const data = mode === "daily" ? await sbFetch("daily_rankings", "GET", null, {
-        date: `eq.${date}`,
-        order: "xp.desc,ts.asc",
-        select: "name,xp,ts"
-      }) : await sbFetch("weekly_rankings", "GET", null, {
-        week_key: `eq.${weekKey}`,
-        order: "xp.desc,ts.asc",
-        select: "name,xp,ts"
-      });
-      setRanks(Array.isArray(data) ? data : []);
-    } catch {
-      setRankError(true);
-    }
-    setRankLoaded(true);
-    setRankLoad(false);
+      const data = mode==="daily"
+        ? await sbFetch("daily_rankings","GET",null,{date:`eq.${date}`,order:"xp.desc,ts.asc",select:"name,xp,ts"})
+        : await sbFetch("weekly_rankings","GET",null,{week_key:`eq.${weekKey}`,order:"xp.desc,ts.asc",select:"name,xp,ts"});
+      setRanks(Array.isArray(data)?data:[]);
+    } catch { setRankError(true); }
+    setRankLoaded(true); setRankLoad(false);
   };
-  const handleDateClick = ds => {
-    const wk = dateToWeekKey(ds) || selWeekKey;
-    setSelDate(ds);
-    setSelWeekKey(wk);
-    setShowEdit(false);
-    setEditDay(null);
-    setEditWk(null);
-    setEditSaved(false);
-    setRanks([]);
-    setRankLoaded(false);
+
+  const handleDateClick = (ds) => {
+    const wk = dateToWeekKey(ds)||selWeekKey;
+    setSelDate(ds); setSelWeekKey(wk);
+    setShowEdit(false); setEditDay(null); setEditWk(null); setEditSaved(false);
+    setRanks([]); setRankLoaded(false);
     loadRankings(ds, wk, rankMode);
   };
-  const handleModeChange = mode => {
-    setRankMode(mode);
-    setShowEdit(false);
-    setRanks([]);
-    setRankLoaded(false);
+
+  const handleModeChange = (mode) => {
+    setRankMode(mode); setShowEdit(false);
+    setRanks([]); setRankLoaded(false);
     loadRankings(selDate, selWeekKey, mode);
   };
+
   const toggleEdit = async () => {
-    if (showEdit) {
-      setShowEdit(false);
-      return;
-    }
+    if (showEdit) { setShowEdit(false); return; }
     setEditLoad(true);
     const wk = dateToWeekKey(selDate) || selWeekKey;
     const d = await loadDayRecord(myName, selDate);
-    const isPre = wk === "pre:1" || wk === "pre:2";
+    const isPre = wk==="pre:1"||wk==="pre:2";
     const initFn = isPre ? INIT_PRE_WK : INIT_WK;
     const w = await loadWeekRecord(myName, wk, initFn);
-    setEditDay(d ? {
-      ...INIT_DAY(),
-      ...d
-    } : INIT_DAY());
-    setEditWk({
-      data: w,
-      weekKey: wk,
-      isPre
-    });
+    setEditDay(d?{...INIT_DAY(),...d}:INIT_DAY());
+    setEditWk({data:w, weekKey:wk, isPre});
     setEditLoad(false);
     setEditSaved(false);
     setShowEdit(true);
   };
+
   const handleEditSave = async (newDay, newWk, wkKey) => {
     await saveDayRecord(myName, selDate, newDay);
     await saveWeekRecord(myName, wkKey, newWk);
     const dxp = calcDXP(newDay);
-    const isPre = wkKey === "pre:1" || wkKey === "pre:2";
+    const isPre = wkKey==="pre:1"||wkKey==="pre:2";
     const wkXP = isPre ? calcPreWXP(newWk) : calcWXP(newWk);
     if (dxp > 0) await saveRank(selDate, myName, dxp);
     if (wkXP > 0) await saveWeekRank(wkKey, myName, wkXP);
     setEditDay(newDay);
-    setEditWk(prev => ({
-      ...prev,
-      data: newWk
-    }));
+    setEditWk(prev=>({...prev,data:newWk}));
     setEditSaved(true);
-    setTimeout(() => setEditSaved(false), 2000);
+    setTimeout(()=>setEditSaved(false), 2000);
   };
-  const firstDow = new Date(year, month, 1).getDay();
-  const daysInMon = new Date(year, month + 1, 0).getDate();
-  const cells = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMon; d++) {
-    const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    cells.push({
-      d,
-      ds,
-      disabled: new Date(year, month, d) < CAL_START || new Date(year, month, d) > CAL_END
-    });
+
+  const firstDow  = new Date(year,month,1).getDay();
+  const daysInMon = new Date(year,month+1,0).getDate();
+  const cells     = [];
+  for (let i=0;i<firstDow;i++) cells.push(null);
+  for (let d=1;d<=daysInMon;d++) {
+    const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    cells.push({d,ds,disabled:new Date(year,month,d)<CAL_START||new Date(year,month,d)>CAL_END});
   }
-  const weekRange = rankMode === "weekly" ? weekKeyRange(selWeekKey) : null;
-  const MONTHS = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
-  const MEDALS = ["🥇", "🥈", "🥉"];
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.pad
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 22,
-      color: C.gold,
-      fontStyle: "italic",
-      letterSpacing: 1,
-      marginBottom: 16,
-      textAlign: "center"
-    }
-  }, "deeper"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: prevMonth,
-    style: {
-      background: "none",
-      border: "none",
-      fontSize: 24,
-      color: canPrev ? C.gold : C.dim,
-      cursor: canPrev ? "pointer" : "default",
-      padding: "2px 10px"
-    }
-  }, "\u2039"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      color: C.text
-    }
-  }, year, "\uB144 ", MONTHS[month]), /*#__PURE__*/React.createElement("button", {
-    onClick: nextMonth,
-    style: {
-      background: "none",
-      border: "none",
-      fontSize: 24,
-      color: canNext ? C.gold : C.dim,
-      cursor: canNext ? "pointer" : "default",
-      padding: "2px 10px"
-    }
-  }, "\u203A")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(7,1fr)",
-      marginBottom: 4
-    }
-  }, ["일", "월", "화", "수", "목", "금", "토"].map(d => /*#__PURE__*/React.createElement("div", {
-    key: d,
-    style: {
-      textAlign: "center",
-      fontSize: 10,
-      color: C.dim,
-      padding: "3px 0"
-    }
-  }, d))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(7,1fr)",
-      gap: 4,
-      marginBottom: 16
-    }
-  }, cells.map((cell, i) => {
-    if (!cell) return /*#__PURE__*/React.createElement("div", {
-      key: i
-    });
-    const isSel = rankMode === "daily" && cell.ds === selDate;
-    const isToday = cell.ds === todayStr;
-    const inWeek = rankMode === "weekly" && weekRange && cell.ds >= weekRange.s && cell.ds <= weekRange.e;
-    const isClicked = rankMode === "weekly" && cell.ds === selDate;
-    return /*#__PURE__*/React.createElement("button", {
-      key: i,
-      onClick: () => {
-        if (!cell.disabled) handleDateClick(cell.ds);
-      },
-      style: {
-        padding: "9px 0",
-        border: "none",
-        borderRadius: 8,
-        fontSize: 13,
-        cursor: cell.disabled ? "default" : "pointer",
-        background: isSel || isClicked ? C.gold : inWeek ? "rgba(201,169,110,0.22)" : isToday ? "rgba(201,169,110,0.16)" : "rgba(255,255,255,0.05)",
-        color: cell.disabled ? "rgba(240,235,224,0.18)" : isSel || isClicked ? C.bg : inWeek ? C.gold : isToday ? C.gold : C.text,
-        outline: isToday && !isSel && !inWeek ? "1px solid rgba(201,169,110,0.45)" : "none",
-        transition: "all 0.15s"
-      }
-    }, cell.d);
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      marginBottom: 14,
-      border: "1px solid rgba(201,169,110,0.28)",
-      borderRadius: 10,
-      overflow: "hidden"
-    }
-  }, [["daily", "데일리 랭킹"], ["weekly", "주간 랭킹"]].map(([mode, label]) => /*#__PURE__*/React.createElement("button", {
-    key: mode,
-    onClick: () => handleModeChange(mode),
-    style: {
-      flex: 1,
-      padding: "10px",
-      border: "none",
-      cursor: "pointer",
-      background: rankMode === mode ? C.gold : "transparent",
-      color: rankMode === mode ? C.bg : C.mid,
-      fontSize: 12,
-      fontFamily: "'Playfair Display', Georgia, serif",
-      transition: "all 0.2s",
-      letterSpacing: 0.5
-    }
-  }, label))), /*#__PURE__*/React.createElement("button", {
-    onClick: toggleEdit,
-    style: {
-      width: "100%",
-      padding: "11px",
-      border: "none",
-      borderRadius: 10,
-      cursor: "pointer",
-      background: showEdit ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.07)",
-      color: showEdit ? C.gold : C.mid,
-      outline: `1px solid ${showEdit ? "rgba(201,169,110,0.45)" : "rgba(201,169,110,0.25)"}`,
-      fontSize: 12,
-      fontFamily: "'Playfair Display', Georgia, serif",
-      letterSpacing: 1,
-      marginBottom: 14,
-      transition: "all 0.2s"
-    }
-  }, editLoad ? "···" : showEdit ? "닫기" : `내 기록 편집  ·  ${fmtDate(selDate)}`), rankMode === "weekly" && selWeekKey === WK_KEY && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "rgba(201,169,110,0.07)",
-      borderRadius: 10,
-      border: "1px solid rgba(201,169,110,0.22)",
-      padding: "10px 16px",
-      marginBottom: 14,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.dim
-    }
-  }, weekKeyLabel(selWeekKey), " \uB0B4 \uD569\uC0B0"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 16,
-      color: C.gold,
-      fontWeight: 600
-    }
-  }, weekTotalXP, " XP")), showEdit && editDay && editWk && /*#__PURE__*/React.createElement(PastEditPanel, {
-    date: selDate,
-    day: editDay,
-    wkData: editWk.data,
-    weekKey: editWk.weekKey,
-    isPre: editWk.isPre,
-    saved: editSaved,
-    onSave: handleEditSave
-  }), /*#__PURE__*/React.createElement("div", {
-    style: S.secLbl
-  }, rankMode === "daily" ? `데일리 랭킹 · ${fmtDate(selDate)}` : `주간 랭킹 · ${weekKeyLabel(selWeekKey)}`), !rankLoaded && !rankLoad && !rankError && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: C.dim,
-      textAlign: "center",
-      padding: "24px 0",
-      lineHeight: 1.9
-    }
-  }, "\uB0A0\uC9DC\uB97C \uB20C\uB7EC \uB7AD\uD0B9\uC744 \uD655\uC778\uD558\uC138\uC694.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11
-    }
-  }, "\uBBF8\uC158 \uC644\uB8CC \uC2DC \uC790\uB3D9 \uB4F1\uB85D\uB429\uB2C8\uB2E4.")), rankLoad && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: C.dim,
-      textAlign: "center",
-      padding: 20
-    }
-  }, "\xB7\xB7\xB7"), !rankLoad && rankError && /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "20px 0"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: C.dim,
-      marginBottom: 12
-    }
-  }, "\uB7AD\uD0B9\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4."), /*#__PURE__*/React.createElement("button", {
-    onClick: () => loadRankings(selDate, selWeekKey, rankMode),
-    style: {
-      padding: "8px 20px",
-      border: "none",
-      borderRadius: 20,
-      cursor: "pointer",
-      background: "rgba(201,169,110,0.15)",
-      color: C.gold,
-      fontSize: 12,
-      outline: "1px solid rgba(201,169,110,0.35)",
-      fontFamily: "'Playfair Display', Georgia, serif"
-    }
-  }, "\uB2E4\uC2DC \uBD88\uB7EC\uC624\uAE30")), !rankLoad && !rankError && rankLoaded && ranks.length > 0 && /*#__PURE__*/React.createElement("div", null, ranks.map((r, i) => /*#__PURE__*/React.createElement("div", {
-    key: r.name,
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      background: r.name === myName ? "rgba(201,169,110,0.1)" : C.surface,
-      border: r.name === myName ? "1px solid rgba(201,169,110,0.45)" : "1px solid rgba(201,169,110,0.14)",
-      borderRadius: 12,
-      padding: "13px 16px",
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: i < 3 ? 20 : 13,
-      width: 28,
-      textAlign: "center",
-      color: C.dim,
-      flexShrink: 0
-    }
-  }, i < 3 ? MEDALS[i] : i + 1), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      fontSize: 14,
-      color: r.name === myName ? C.gold : C.text,
-      fontWeight: r.name === myName ? 600 : 400
-    }
-  }, r.name, r.name === myName && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      color: C.dim,
-      marginLeft: 6
-    }
-  }, "\uB098")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "right"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 16,
-      color: C.gold,
-      fontWeight: 600
-    }
-  }, r.xp), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: C.dim
-    }
-  }, "XP")))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: C.dim,
-      textAlign: "center",
-      marginTop: 4
-    }
-  }, ranks.length, "\uBA85 \uCC38\uC5EC")), !rankLoad && !rankError && rankLoaded && ranks.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: C.dim,
-      textAlign: "center",
-      padding: "20px 0",
-      lineHeight: 1.9
-    }
-  }, "\uC774 \uB0A0\uC758 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11
-    }
-  }, "\uBBF8\uC158 \uC644\uB8CC \uC2DC \uC790\uB3D9 \uB4F1\uB85D\uB429\uB2C8\uB2E4.")));
+
+  const weekRange = rankMode==="weekly"?weekKeyRange(selWeekKey):null;
+  const MONTHS    = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+  const MEDALS    = ["🥇","🥈","🥉"];
+
+  return (
+    <div style={S.pad}>
+      <div style={{fontSize:22, color:C.gold, fontStyle:"italic", letterSpacing:1, marginBottom:16, textAlign:"center"}}>deeper</div>
+
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10}}>
+        <button onClick={prevMonth} style={{background:"none",border:"none",fontSize:24,color:canPrev?C.gold:C.dim,cursor:canPrev?"pointer":"default",padding:"2px 10px"}}>‹</button>
+        <div style={{fontSize:14, color:C.text}}>{year}년 {MONTHS[month]}</div>
+        <button onClick={nextMonth} style={{background:"none",border:"none",fontSize:24,color:canNext?C.gold:C.dim,cursor:canNext?"pointer":"default",padding:"2px 10px"}}>›</button>
+      </div>
+
+      <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:4}}>
+        {["일","월","화","수","목","금","토"].map(d=>(
+          <div key={d} style={{textAlign:"center",fontSize:10,color:C.dim,padding:"3px 0"}}>{d}</div>
+        ))}
+      </div>
+
+      <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:16}}>
+        {cells.map((cell,i)=>{
+          if (!cell) return <div key={i}/>;
+          const isSel    =rankMode==="daily"&&cell.ds===selDate;
+          const isToday  =cell.ds===todayStr;
+          const inWeek   =rankMode==="weekly"&&weekRange&&cell.ds>=weekRange.s&&cell.ds<=weekRange.e;
+          const isClicked=rankMode==="weekly"&&cell.ds===selDate;
+          return(
+            <button key={i} onClick={()=>{if(!cell.disabled)handleDateClick(cell.ds);}} style={{
+              padding:"9px 0",border:"none",borderRadius:8,fontSize:13,
+              cursor:cell.disabled?"default":"pointer",
+              background:isSel||isClicked?C.gold:inWeek?"rgba(201,169,110,0.22)":isToday?"rgba(201,169,110,0.16)":"rgba(255,255,255,0.05)",
+              color:cell.disabled?"rgba(240,235,224,0.18)":isSel||isClicked?C.bg:inWeek?C.gold:isToday?C.gold:C.text,
+              outline:isToday&&!isSel&&!inWeek?"1px solid rgba(201,169,110,0.45)":"none",
+              transition:"all 0.15s",
+            }}>{cell.d}</button>
+          );
+        })}
+      </div>
+
+      <div style={{display:"flex",marginBottom:14,border:"1px solid rgba(201,169,110,0.28)",borderRadius:10,overflow:"hidden"}}>
+        {[["daily","데일리 랭킹"],["weekly","주간 랭킹"]].map(([mode,label])=>(
+          <button key={mode} onClick={()=>handleModeChange(mode)} style={{
+            flex:1,padding:"10px",border:"none",cursor:"pointer",
+            background:rankMode===mode?C.gold:"transparent",
+            color:rankMode===mode?C.bg:C.mid,
+            fontSize:12,fontFamily:"'Playfair Display', Georgia, serif",
+            transition:"all 0.2s",letterSpacing:0.5,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      <button onClick={toggleEdit} style={{
+        width:"100%",padding:"11px",border:"none",borderRadius:10,cursor:"pointer",
+        background:showEdit?"rgba(201,169,110,0.15)":"rgba(255,255,255,0.07)",
+        color:showEdit?C.gold:C.mid,
+        outline:`1px solid ${showEdit?"rgba(201,169,110,0.45)":"rgba(201,169,110,0.25)"}`,
+        fontSize:12,fontFamily:"'Playfair Display', Georgia, serif",
+        letterSpacing:1,marginBottom:14,transition:"all 0.2s",
+      }}>
+        {editLoad?"···":showEdit?"닫기":`내 기록 편집  ·  ${fmtDate(selDate)}`}
+      </button>
+
+      {rankMode==="weekly"&&selWeekKey===WK_KEY&&(
+        <div style={{
+          background:"rgba(201,169,110,0.07)",borderRadius:10,
+          border:"1px solid rgba(201,169,110,0.22)",padding:"10px 16px",marginBottom:14,
+          display:"flex",justifyContent:"space-between",alignItems:"center",
+        }}>
+          <div style={{fontSize:12,color:C.dim}}>{weekKeyLabel(selWeekKey)} 내 합산</div>
+          <div style={{fontSize:16,color:C.gold,fontWeight:600}}>{weekTotalXP} XP</div>
+        </div>
+      )}
+
+      {showEdit&&editDay&&editWk&&(
+        <PastEditPanel
+          date={selDate}
+          day={editDay}
+          wkData={editWk.data}
+          weekKey={editWk.weekKey}
+          isPre={editWk.isPre}
+          saved={editSaved}
+          onSave={handleEditSave}
+        />
+      )}
+
+      <div style={S.secLbl}>
+        {rankMode==="daily"?`데일리 랭킹 · ${fmtDate(selDate)}`:`주간 랭킹 · ${weekKeyLabel(selWeekKey)}`}
+      </div>
+
+      {!rankLoaded&&!rankLoad&&!rankError&&(
+        <div style={{fontSize:13,color:C.dim,textAlign:"center",padding:"24px 0",lineHeight:1.9}}>
+          날짜를 눌러 랭킹을 확인하세요.<br/>
+          <span style={{fontSize:11}}>미션 완료 시 자동 등록됩니다.</span>
+        </div>
+      )}
+      {rankLoad&&<div style={{color:C.dim,textAlign:"center",padding:20}}>···</div>}
+      {!rankLoad&&rankError&&(
+        <div style={{textAlign:"center",padding:"20px 0"}}>
+          <div style={{fontSize:13,color:C.dim,marginBottom:12}}>랭킹을 불러오지 못했습니다.</div>
+          <button onClick={()=>loadRankings(selDate,selWeekKey,rankMode)} style={{
+            padding:"8px 20px",border:"none",borderRadius:20,cursor:"pointer",
+            background:"rgba(201,169,110,0.15)",color:C.gold,fontSize:12,
+            outline:"1px solid rgba(201,169,110,0.35)",
+            fontFamily:"'Playfair Display', Georgia, serif",
+          }}>다시 불러오기</button>
+        </div>
+      )}
+      {!rankLoad&&!rankError&&rankLoaded&&ranks.length>0&&(
+        <div>
+          {ranks.map((r,i)=>(
+            <div key={r.name} style={{
+              display:"flex",alignItems:"center",gap:12,
+              background:r.name===myName?"rgba(201,169,110,0.1)":C.surface,
+              border:r.name===myName?"1px solid rgba(201,169,110,0.45)":"1px solid rgba(201,169,110,0.14)",
+              borderRadius:12,padding:"13px 16px",marginBottom:8,
+            }}>
+              <div style={{fontSize:i<3?20:13,width:28,textAlign:"center",color:C.dim,flexShrink:0}}>
+                {i<3?MEDALS[i]:i+1}
+              </div>
+              <div style={{flex:1,fontSize:14,color:r.name===myName?C.gold:C.text,fontWeight:r.name===myName?600:400}}>
+                {r.name}{r.name===myName&&<span style={{fontSize:10,color:C.dim,marginLeft:6}}>나</span>}
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:16,color:C.gold,fontWeight:600}}>{r.xp}</div>
+                <div style={{fontSize:9,color:C.dim}}>XP</div>
+              </div>
+            </div>
+          ))}
+          <div style={{fontSize:10,color:C.dim,textAlign:"center",marginTop:4}}>{ranks.length}명 참여</div>
+        </div>
+      )}
+      {!rankLoad&&!rankError&&rankLoaded&&ranks.length===0&&(
+        <div style={{fontSize:13,color:C.dim,textAlign:"center",padding:"20px 0",lineHeight:1.9}}>
+          이 날의 기록이 없습니다.<br/>
+          <span style={{fontSize:11}}>미션 완료 시 자동 등록됩니다.</span>
+        </div>
+      )}
+    </div>
+  );
 }
-function PastEditPanel({
-  date,
-  day,
-  wkData,
-  weekKey,
-  isPre,
-  saved,
-  onSave
-}) {
-  const [d, setD] = useState({
-    ...day
-  });
-  const [wk, setWk] = useState({
-    ...wkData
-  });
+
+function PastEditPanel({ date, day, wkData, weekKey, isPre, saved, onSave }) {
+  const [d,  setD]  = useState({...day});
+  const [wk, setWk] = useState({...wkData});
   const missions = isPre ? PRE_WEEKLY : WEEKLY;
-  useEffect(() => {
-    setD({
-      ...day
-    });
-  }, [date]);
-  useEffect(() => {
-    setWk({
-      ...wkData
-    });
-  }, [date]);
-  const mpTexts = ["", "한 페이지.", "두 페이지.", "세 페이지."];
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: C.surface,
-      borderRadius: 12,
-      border: "1px solid rgba(201,169,110,0.25)",
-      padding: "16px",
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.gold,
-      letterSpacing: 1,
-      marginBottom: 14
-    }
-  }, fmtDate(date), " \uAE30\uB85D \uD3B8\uC9D1"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.mid,
-      marginBottom: 8
-    }
-  }, "\uBAA8\uB2DD\uD398\uC774\uC9C0"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6
-    }
-  }, [0, 1, 2, 3].map(v => /*#__PURE__*/React.createElement("button", {
-    key: v,
-    onClick: () => setD(p => ({
-      ...p,
-      mp: v
-    })),
-    style: {
-      flex: 1,
-      padding: "10px 0",
-      border: "none",
-      borderRadius: 8,
-      cursor: "pointer",
-      fontFamily: "'Playfair Display', Georgia, serif",
-      fontSize: 13,
-      background: d.mp === v ? C.gold : "rgba(255,255,255,0.08)",
-      color: d.mp === v ? C.bg : C.mid,
-      outline: d.mp === v ? "none" : "1px solid rgba(201,169,110,0.25)"
-    }
-  }, v === 0 ? "–" : `${v}p`))), d.mp > 0 && /*#__PURE__*/React.createElement("textarea", {
-    value: d.mpNote || "",
-    onChange: e => setD(p => ({
-      ...p,
-      mpNote: e.target.value
-    })),
-    placeholder: "\uC624\uB298 \uC4F0\uBA74\uC11C \uB5A0\uC624\uB978 \uAC83\u2026",
-    style: {
-      ...S.noteArea,
-      marginTop: 8
-    },
-    rows: 2
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.mid
-    }
-  }, "Key Scene"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setD(p => ({
-      ...p,
-      key: !p.key
-    })),
-    style: {
-      width: 26,
-      height: 26,
-      borderRadius: 6,
-      border: "none",
-      cursor: "pointer",
-      background: d.key ? C.gold : "rgba(255,255,255,0.1)",
-      outline: d.key ? "none" : "1px solid rgba(201,169,110,0.4)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }
-  }, d.key && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: C.bg,
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, "\u2713"))), /*#__PURE__*/React.createElement("textarea", {
-    value: d.keyNote || "",
-    onChange: e => setD(p => ({
-      ...p,
-      keyNote: e.target.value
-    })),
-    placeholder: "\uADF8 \uB0A0 \uAC00\uC7A5 \uC911\uC694\uD55C \uD55C \uAC00\uC9C0\u2026",
-    style: S.noteArea,
-    rows: 2
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.mid
-    }
-  }, "\uAC10\uC0AC\uC77C\uAE30"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setD(p => ({
-      ...p,
-      gv: !p.gv
-    })),
-    style: {
-      width: 26,
-      height: 26,
-      borderRadius: 6,
-      border: "none",
-      cursor: "pointer",
-      background: d.gv ? C.gold : "rgba(255,255,255,0.1)",
-      outline: d.gv ? "none" : "1px solid rgba(201,169,110,0.4)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }
-  }, d.gv && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: C.bg,
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, "\u2713"))), /*#__PURE__*/React.createElement("textarea", {
-    value: d.gvNote || "",
-    onChange: e => setD(p => ({
-      ...p,
-      gvNote: e.target.value
-    })),
-    placeholder: "\uAC10\uC0AC\uD55C \uAC83\u2026",
-    style: S.noteArea,
-    rows: 2
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      borderTop: "1px solid rgba(201,169,110,0.12)",
-      paddingTop: 14,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.dim,
-      letterSpacing: 2,
-      marginBottom: 10
-    }
-  }, "\uC8FC\uAC04 \uBBF8\uC158 \xB7 ", weekKeyLabel(weekKey)), missions.map(m => /*#__PURE__*/React.createElement("div", {
-    key: m.id,
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "10px 0",
-      borderBottom: "1px solid rgba(201,169,110,0.07)"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      color: wk[m.id] ? C.text : C.dim
-    }
-  }, m.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: wk[m.id] ? C.gold : "rgba(201,169,110,0.3)"
-    }
-  }, "+", m.xp), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setWk(p => ({
-      ...p,
-      [m.id]: !p[m.id]
-    })),
-    style: {
-      width: 26,
-      height: 26,
-      borderRadius: 6,
-      border: "none",
-      cursor: "pointer",
-      background: wk[m.id] ? C.gold : "rgba(255,255,255,0.1)",
-      outline: wk[m.id] ? "none" : "1px solid rgba(201,169,110,0.4)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }
-  }, wk[m.id] && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: C.bg,
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, "\u2713")))))), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onSave(d, wk, weekKey),
-    style: {
-      width: "100%",
-      padding: "12px",
-      border: "none",
-      borderRadius: 10,
-      cursor: "pointer",
-      background: saved ? "rgba(201,169,110,0.2)" : C.gold,
-      color: saved ? C.gold : C.bg,
-      fontSize: 13,
-      fontFamily: "'Playfair Display', Georgia, serif",
-      outline: saved ? "1px solid rgba(201,169,110,0.5)" : "none",
-      transition: "all 0.2s",
-      fontWeight: saved ? 400 : 600
-    }
-  }, saved ? "저장됨 ✓" : "저장하기"));
+
+  useEffect(()=>{ setD({...day}); }, [date]);
+  useEffect(()=>{ setWk({...wkData}); }, [date]);
+
+  const mpTexts = ["","한 페이지.","두 페이지.","세 페이지."];
+
+  return (
+    <div style={{background:C.surface,borderRadius:12,border:"1px solid rgba(201,169,110,0.25)",padding:"16px",marginBottom:14}}>
+      <div style={{fontSize:11,color:C.gold,letterSpacing:1,marginBottom:14}}>{fmtDate(date)} 기록 편집</div>
+
+      {/* 모닝페이지 */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:12,color:C.mid,marginBottom:8}}>모닝페이지</div>
+        <div style={{display:"flex",gap:6}}>
+          {[0,1,2,3].map(v=>(
+            <button key={v} onClick={()=>setD(p=>({...p,mp:v}))} style={{
+              flex:1,padding:"10px 0",border:"none",borderRadius:8,cursor:"pointer",
+              fontFamily:"'Playfair Display', Georgia, serif",fontSize:13,
+              background:d.mp===v?C.gold:"rgba(255,255,255,0.08)",
+              color:d.mp===v?C.bg:C.mid,
+              outline:d.mp===v?"none":"1px solid rgba(201,169,110,0.25)",
+            }}>{v===0?"–":`${v}p`}</button>
+          ))}
+        </div>
+        {d.mp>0&&(
+          <textarea value={d.mpNote||""} onChange={e=>setD(p=>({...p,mpNote:e.target.value}))}
+            placeholder="오늘 쓰면서 떠오른 것…" style={{...S.noteArea,marginTop:8}} rows={2}/>
+        )}
+      </div>
+
+      {/* Key Scene */}
+      <div style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:12,color:C.mid}}>Key Scene</div>
+          <button onClick={()=>setD(p=>({...p,key:!p.key}))} style={{
+            width:26,height:26,borderRadius:6,border:"none",cursor:"pointer",
+            background:d.key?C.gold:"rgba(255,255,255,0.1)",
+            outline:d.key?"none":"1px solid rgba(201,169,110,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+          }}>
+            {d.key&&<span style={{color:C.bg,fontSize:11,fontWeight:700}}>✓</span>}
+          </button>
+        </div>
+        <textarea value={d.keyNote||""} onChange={e=>setD(p=>({...p,keyNote:e.target.value}))}
+          placeholder="그 날 가장 중요한 한 가지…" style={S.noteArea} rows={2}/>
+      </div>
+
+      {/* 감사일기 */}
+      <div style={{marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:12,color:C.mid}}>감사일기</div>
+          <button onClick={()=>setD(p=>({...p,gv:!p.gv}))} style={{
+            width:26,height:26,borderRadius:6,border:"none",cursor:"pointer",
+            background:d.gv?C.gold:"rgba(255,255,255,0.1)",
+            outline:d.gv?"none":"1px solid rgba(201,169,110,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+          }}>
+            {d.gv&&<span style={{color:C.bg,fontSize:11,fontWeight:700}}>✓</span>}
+          </button>
+        </div>
+        <textarea value={d.gvNote||""} onChange={e=>setD(p=>({...p,gvNote:e.target.value}))}
+          placeholder="감사한 것…" style={S.noteArea} rows={2}/>
+      </div>
+
+      {/* 주간 미션 */}
+      <div style={{borderTop:"1px solid rgba(201,169,110,0.12)",paddingTop:14,marginBottom:16}}>
+        <div style={{fontSize:11,color:C.dim,letterSpacing:2,marginBottom:10}}>주간 미션 · {weekKeyLabel(weekKey)}</div>
+        {missions.map(m=>(
+          <div key={m.id} style={{
+            display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"10px 0",borderBottom:"1px solid rgba(201,169,110,0.07)",
+          }}>
+            <span style={{fontSize:13,color:wk[m.id]?C.text:C.dim}}>{m.label}</span>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:11,color:wk[m.id]?C.gold:"rgba(201,169,110,0.3)"}}>+{m.xp}</span>
+              <button onClick={()=>setWk(p=>({...p,[m.id]:!p[m.id]}))} style={{
+                width:26,height:26,borderRadius:6,border:"none",cursor:"pointer",
+                background:wk[m.id]?C.gold:"rgba(255,255,255,0.1)",
+                outline:wk[m.id]?"none":"1px solid rgba(201,169,110,0.4)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+              }}>
+                {wk[m.id]&&<span style={{color:C.bg,fontSize:11,fontWeight:700}}>✓</span>}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 저장 버튼 */}
+      <button onClick={()=>onSave(d,wk,weekKey)} style={{
+        width:"100%",padding:"12px",border:"none",borderRadius:10,cursor:"pointer",
+        background:saved?"rgba(201,169,110,0.2)":C.gold,
+        color:saved?C.gold:C.bg,
+        fontSize:13,fontFamily:"'Playfair Display', Georgia, serif",
+        outline:saved?"1px solid rgba(201,169,110,0.5)":"none",
+        transition:"all 0.2s",fontWeight:saved?400:600,
+      }}>
+        {saved?"저장됨 ✓":"저장하기"}
+      </button>
+    </div>
+  );
 }
 
 // ── 디자인 ───────────────────────────────────────────────────────
 const C = {
-  bg: "#0e1c15",
-  surface: "#152a1e",
-  surf2: "#1a3326",
-  gold: "#c9a96e",
-  green: "#3ecf7a",
-  text: "#f0ebe0",
-  mid: "rgba(240,235,224,0.75)",
-  dim: "rgba(240,235,224,0.52)"
+  bg:"#0e1c15", surface:"#152a1e", surf2:"#1a3326",
+  gold:"#c9a96e", green:"#3ecf7a",
+  text:"#f0ebe0", mid:"rgba(240,235,224,0.75)", dim:"rgba(240,235,224,0.52)",
 };
 const S = {
-  root: {
-    fontFamily: "'Playfair Display', Georgia, serif",
-    background: C.bg,
-    color: C.text,
-    minHeight: "100vh",
-    maxWidth: 480,
-    margin: "0 auto",
-    display: "flex",
-    flexDirection: "column"
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "16px 20px 12px",
-    borderBottom: "1px solid rgba(201,169,110,0.13)"
-  },
-  salonName: {
-    fontSize: 9,
-    letterSpacing: 3,
-    color: C.gold,
-    textTransform: "uppercase"
-  },
-  streakBox: {
-    background: C.surf2,
-    borderRadius: 8,
-    border: "1px solid rgba(201,169,110,0.25)",
-    padding: "5px 10px"
-  },
-  streakNum: {
-    fontSize: 16,
-    color: C.gold
-  },
-  hero: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    padding: "12px 20px 10px",
-    background: `linear-gradient(140deg,${C.surface} 0%,${C.bg} 100%)`
-  },
-  barBg: {
-    background: "rgba(255,255,255,0.1)",
-    height: 5,
-    borderRadius: 3
-  },
-  barFill: {
-    background: C.gold,
-    height: 5,
-    borderRadius: 3,
-    transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)"
-  },
-  pad: {
-    padding: "16px 16px 8px"
-  },
-  secLbl: {
-    fontSize: 9,
-    letterSpacing: 3,
-    color: C.dim,
-    textTransform: "uppercase",
-    marginBottom: 10
-  },
-  dayCard: {
-    borderRadius: 14,
-    padding: "18px 18px 16px",
-    marginBottom: 12,
-    transition: "all 0.2s"
-  },
-  noteArea: {
-    width: "100%",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(201,169,110,0.22)",
-    borderRadius: 8,
-    color: C.text,
-    fontSize: 13,
-    fontFamily: "'Playfair Display', Georgia, serif",
-    padding: "10px 12px",
-    outline: "none",
-    resize: "none",
-    lineHeight: 1.75
-  },
-  doneMsg: {
-    marginTop: 8,
-    textAlign: "center",
-    fontSize: 12,
-    color: C.gold,
-    letterSpacing: 2
-  },
-  statCard: {
-    background: C.surf2,
-    borderRadius: 10,
-    border: "1px solid rgba(201,169,110,0.18)",
-    padding: "14px 8px",
-    textAlign: "center"
-  },
-  tabBar: {
-    position: "fixed",
-    bottom: 0,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "100%",
-    maxWidth: 480,
-    display: "flex",
-    background: C.surface,
-    borderTop: "1px solid rgba(201,169,110,0.13)",
-    zIndex: 99
-  },
-  tabBtn: {
-    flex: 1,
-    padding: "13px 0 17px",
-    background: "none",
-    border: "none",
-    fontSize: 11,
-    letterSpacing: 0.5,
-    cursor: "pointer",
-    fontFamily: "'Playfair Display', Georgia, serif",
-    transition: "color 0.2s"
-  }
+  root:     { fontFamily:"'Playfair Display', Georgia, serif", background:C.bg, color:C.text, minHeight:"100vh", maxWidth:480, margin:"0 auto", display:"flex", flexDirection:"column" },
+  header:   { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px 12px", borderBottom:"1px solid rgba(201,169,110,0.13)" },
+  salonName:{ fontSize:9, letterSpacing:3, color:C.gold, textTransform:"uppercase" },
+  streakBox:{ background:C.surf2, borderRadius:8, border:"1px solid rgba(201,169,110,0.25)", padding:"5px 10px" },
+  streakNum:{ fontSize:16, color:C.gold },
+  hero:     { display:"flex", justifyContent:"space-between", alignItems:"flex-end", padding:"12px 20px 10px", background:`linear-gradient(140deg,${C.surface} 0%,${C.bg} 100%)` },
+  barBg:    { background:"rgba(255,255,255,0.1)", height:5, borderRadius:3 },
+  barFill:  { background:C.gold, height:5, borderRadius:3, transition:"width 0.5s cubic-bezier(0.4,0,0.2,1)" },
+  pad:      { padding:"16px 16px 8px" },
+  secLbl:   { fontSize:9, letterSpacing:3, color:C.dim, textTransform:"uppercase", marginBottom:10 },
+  dayCard:  { borderRadius:14, padding:"18px 18px 16px", marginBottom:12, transition:"all 0.2s" },
+  noteArea: { width:"100%", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(201,169,110,0.22)", borderRadius:8, color:C.text, fontSize:13, fontFamily:"'Playfair Display', Georgia, serif", padding:"10px 12px", outline:"none", resize:"none", lineHeight:1.75 },
+  doneMsg:  { marginTop:8, textAlign:"center", fontSize:12, color:C.gold, letterSpacing:2 },
+  statCard: { background:C.surf2, borderRadius:10, border:"1px solid rgba(201,169,110,0.18)", padding:"14px 8px", textAlign:"center" },
+  tabBar:   { position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, display:"flex", background:C.surface, borderTop:"1px solid rgba(201,169,110,0.13)", zIndex:99 },
+  tabBtn:   { flex:1, padding:"13px 0 17px", background:"none", border:"none", fontSize:11, letterSpacing:0.5, cursor:"pointer", fontFamily:"'Playfair Display', Georgia, serif", transition:"color 0.2s" },
 };
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
@@ -2443,6 +1285,8 @@ const CSS = `
   textarea::placeholder { color:rgba(240,235,224,0.3); }
   ::-webkit-scrollbar { display:none; }
 `;
+
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(App));
   </script>
