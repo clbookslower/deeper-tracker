@@ -68,7 +68,7 @@ const getWeekDates = (tw) => {
 
 const dateToWeekKey = (dateStr) => {
   const dt = new Date(dateStr + "T00:00:00");
-  if (dt < new Date(2026,3,23) || dt > new Date(2026,6,25)) return null;
+  if (dt < new Date(2026,3,23) || dt > new Date(2026,6,26)) return null;
   if (dt < new Date(2026,3,27)) return "pre:1";
   if (dt < new Date(2026,4,4))  return "pre:2";
   return String(Math.min(Math.floor((dt - new Date(2026,4,4)) / 86400000 / 7) + 1, 12));
@@ -921,9 +921,11 @@ function DeeperTab({ myName, weekTotalXP, WK_KEY }) {
   const [rankLoad,   setRankLoad]  = useState(false);
   const [rankError,  setRankError] = useState(false);
   const [rankLoaded, setRankLoaded]= useState(false);
-  const [showMyRec,  setShowMyRec] = useState(false);
-  const [myRec,      setMyRec]     = useState(null);
-  const [myRecLoad,  setMyRecLoad] = useState(false);
+  const [showEdit,   setShowEdit]  = useState(false);
+  const [editDay,    setEditDay]   = useState(null);
+  const [editWk,     setEditWk]    = useState(null);
+  const [editLoad,   setEditLoad]  = useState(false);
+  const [editSaved,  setEditSaved] = useState(false);
 
   const CAL_START = new Date(2026,3,23);
   const CAL_END   = new Date(2026,6,25);
@@ -953,23 +955,44 @@ function DeeperTab({ myName, weekTotalXP, WK_KEY }) {
   const handleDateClick = (ds) => {
     const wk = dateToWeekKey(ds)||selWeekKey;
     setSelDate(ds); setSelWeekKey(wk);
-    setShowMyRec(false); setMyRec(null);
+    setShowEdit(false); setEditDay(null); setEditWk(null); setEditSaved(false);
     setRanks([]); setRankLoaded(false);
     loadRankings(ds, wk, rankMode);
   };
 
   const handleModeChange = (mode) => {
-    setRankMode(mode); setShowMyRec(false);
+    setRankMode(mode); setShowEdit(false);
     setRanks([]); setRankLoaded(false);
     loadRankings(selDate, selWeekKey, mode);
   };
 
-  const toggleMyRec = async () => {
-    if (showMyRec) { setShowMyRec(false); return; }
-    setMyRecLoad(true);
+  const toggleEdit = async () => {
+    if (showEdit) { setShowEdit(false); return; }
+    setEditLoad(true);
+    const wk = dateToWeekKey(selDate) || selWeekKey;
     const d = await loadDayRecord(myName, selDate);
-    setMyRec(d?{...INIT_DAY(),...d}:INIT_DAY());
-    setMyRecLoad(false); setShowMyRec(true);
+    const isPre = wk==="pre:1"||wk==="pre:2";
+    const initFn = isPre ? INIT_PRE_WK : INIT_WK;
+    const w = await loadWeekRecord(myName, wk, initFn);
+    setEditDay(d?{...INIT_DAY(),...d}:INIT_DAY());
+    setEditWk({data:w, weekKey:wk, isPre});
+    setEditLoad(false);
+    setEditSaved(false);
+    setShowEdit(true);
+  };
+
+  const handleEditSave = async (newDay, newWk, wkKey) => {
+    await saveDayRecord(myName, selDate, newDay);
+    await saveWeekRecord(myName, wkKey, newWk);
+    const dxp = calcDXP(newDay);
+    const isPre = wkKey==="pre:1"||wkKey==="pre:2";
+    const wkXP = isPre ? calcPreWXP(newWk) : calcWXP(newWk);
+    if (dxp > 0) await saveRank(selDate, myName, dxp);
+    if (wkXP > 0) await saveWeekRank(wkKey, myName, wkXP);
+    setEditDay(newDay);
+    setEditWk(prev=>({...prev,data:newWk}));
+    setEditSaved(true);
+    setTimeout(()=>setEditSaved(false), 2000);
   };
 
   const firstDow  = new Date(year,month,1).getDay();
@@ -1033,18 +1056,16 @@ function DeeperTab({ myName, weekTotalXP, WK_KEY }) {
         ))}
       </div>
 
-      {rankMode==="daily"&&(
-        <button onClick={toggleMyRec} style={{
-          width:"100%",padding:"11px",border:"none",borderRadius:10,cursor:"pointer",
-          background:showMyRec?"rgba(201,169,110,0.15)":"rgba(255,255,255,0.07)",
-          color:showMyRec?C.gold:C.mid,
-          outline:`1px solid ${showMyRec?"rgba(201,169,110,0.45)":"rgba(201,169,110,0.25)"}`,
-          fontSize:12,fontFamily:"'Playfair Display', Georgia, serif",
-          letterSpacing:1,marginBottom:14,transition:"all 0.2s",
-        }}>
-          {myRecLoad?"···":showMyRec?"닫기":`내 기록 보기  ·  ${fmtDate(selDate)}`}
-        </button>
-      )}
+      <button onClick={toggleEdit} style={{
+        width:"100%",padding:"11px",border:"none",borderRadius:10,cursor:"pointer",
+        background:showEdit?"rgba(201,169,110,0.15)":"rgba(255,255,255,0.07)",
+        color:showEdit?C.gold:C.mid,
+        outline:`1px solid ${showEdit?"rgba(201,169,110,0.45)":"rgba(201,169,110,0.25)"}`,
+        fontSize:12,fontFamily:"'Playfair Display', Georgia, serif",
+        letterSpacing:1,marginBottom:14,transition:"all 0.2s",
+      }}>
+        {editLoad?"···":showEdit?"닫기":`내 기록 편집  ·  ${fmtDate(selDate)}`}
+      </button>
 
       {rankMode==="weekly"&&selWeekKey===WK_KEY&&(
         <div style={{
@@ -1057,7 +1078,17 @@ function DeeperTab({ myName, weekTotalXP, WK_KEY }) {
         </div>
       )}
 
-      {showMyRec&&myRec&&<MyDayRecord day={myRec}/>}
+      {showEdit&&editDay&&editWk&&(
+        <PastEditPanel
+          date={selDate}
+          day={editDay}
+          wkData={editWk.data}
+          weekKey={editWk.weekKey}
+          isPre={editWk.isPre}
+          saved={editSaved}
+          onSave={handleEditSave}
+        />
+      )}
 
       <div style={S.secLbl}>
         {rankMode==="daily"?`데일리 랭킹 · ${fmtDate(selDate)}`:`주간 랭킹 · ${weekKeyLabel(selWeekKey)}`}
@@ -1115,46 +1146,109 @@ function DeeperTab({ myName, weekTotalXP, WK_KEY }) {
   );
 }
 
-function MyDayRecord({ day }) {
-  const hasAny = day.mp>0||day.key||day.gv;
+function PastEditPanel({ date, day, wkData, weekKey, isPre, saved, onSave }) {
+  const [d,  setD]  = useState({...day});
+  const [wk, setWk] = useState({...wkData});
+  const missions = isPre ? PRE_WEEKLY : WEEKLY;
+
+  useEffect(()=>{ setD({...day}); }, [date]);
+  useEffect(()=>{ setWk({...wkData}); }, [date]);
+
+  const mpTexts = ["","한 페이지.","두 페이지.","세 페이지."];
+
   return (
-    <div style={{background:C.surface,borderRadius:12,border:"1px solid rgba(201,169,110,0.22)",padding:"14px 16px",marginBottom:14}}>
-      {!hasAny?(
-        <div style={{fontSize:13,color:C.dim,fontStyle:"italic",textAlign:"center",padding:"8px 0"}}>이 날의 기록이 없습니다.</div>
-      ):(
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {day.mp>0&&(
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{fontSize:11,color:C.gold}}>모닝페이지 {day.mp}p</span>
-                <span style={{fontSize:11,color:C.dim}}>+{MP_XP[day.mp]}XP</span>
-              </div>
-              {day.mpNote&&<div style={{fontSize:13,color:C.text,lineHeight:1.75,paddingLeft:10,borderLeft:"2px solid rgba(201,169,110,0.3)"}}>{day.mpNote}</div>}
-            </div>
-          )}
-          {day.key&&(
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{fontSize:11,color:C.gold}}>Key Scene</span>
-                <span style={{fontSize:11,color:C.dim}}>+30XP</span>
-              </div>
-              {day.keyNote&&<div style={{fontSize:13,color:C.text,lineHeight:1.75,paddingLeft:10,borderLeft:"2px solid rgba(201,169,110,0.3)"}}>{day.keyNote}</div>}
-            </div>
-          )}
-          {day.gv&&(
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{fontSize:11,color:C.gold}}>감사일기</span>
-                <span style={{fontSize:11,color:C.dim}}>+10XP</span>
-              </div>
-              {day.gvNote&&<div style={{fontSize:13,color:C.text,lineHeight:1.75,paddingLeft:10,borderLeft:"2px solid rgba(201,169,110,0.3)"}}>{day.gvNote}</div>}
-            </div>
-          )}
-          <div style={{borderTop:"1px solid rgba(201,169,110,0.15)",paddingTop:8,textAlign:"right"}}>
-            <span style={{fontSize:13,color:C.gold,fontWeight:600}}>{calcDXP(day)} XP</span>
-          </div>
+    <div style={{background:C.surface,borderRadius:12,border:"1px solid rgba(201,169,110,0.25)",padding:"16px",marginBottom:14}}>
+      <div style={{fontSize:11,color:C.gold,letterSpacing:1,marginBottom:14}}>{fmtDate(date)} 기록 편집</div>
+
+      {/* 모닝페이지 */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:12,color:C.mid,marginBottom:8}}>모닝페이지</div>
+        <div style={{display:"flex",gap:6}}>
+          {[0,1,2,3].map(v=>(
+            <button key={v} onClick={()=>setD(p=>({...p,mp:v}))} style={{
+              flex:1,padding:"10px 0",border:"none",borderRadius:8,cursor:"pointer",
+              fontFamily:"'Playfair Display', Georgia, serif",fontSize:13,
+              background:d.mp===v?C.gold:"rgba(255,255,255,0.08)",
+              color:d.mp===v?C.bg:C.mid,
+              outline:d.mp===v?"none":"1px solid rgba(201,169,110,0.25)",
+            }}>{v===0?"–":`${v}p`}</button>
+          ))}
         </div>
-      )}
+        {d.mp>0&&(
+          <textarea value={d.mpNote||""} onChange={e=>setD(p=>({...p,mpNote:e.target.value}))}
+            placeholder="오늘 쓰면서 떠오른 것…" style={{...S.noteArea,marginTop:8}} rows={2}/>
+        )}
+      </div>
+
+      {/* Key Scene */}
+      <div style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:12,color:C.mid}}>Key Scene</div>
+          <button onClick={()=>setD(p=>({...p,key:!p.key}))} style={{
+            width:26,height:26,borderRadius:6,border:"none",cursor:"pointer",
+            background:d.key?C.gold:"rgba(255,255,255,0.1)",
+            outline:d.key?"none":"1px solid rgba(201,169,110,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+          }}>
+            {d.key&&<span style={{color:C.bg,fontSize:11,fontWeight:700}}>✓</span>}
+          </button>
+        </div>
+        <textarea value={d.keyNote||""} onChange={e=>setD(p=>({...p,keyNote:e.target.value}))}
+          placeholder="그 날 가장 중요한 한 가지…" style={S.noteArea} rows={2}/>
+      </div>
+
+      {/* 감사일기 */}
+      <div style={{marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:12,color:C.mid}}>감사일기</div>
+          <button onClick={()=>setD(p=>({...p,gv:!p.gv}))} style={{
+            width:26,height:26,borderRadius:6,border:"none",cursor:"pointer",
+            background:d.gv?C.gold:"rgba(255,255,255,0.1)",
+            outline:d.gv?"none":"1px solid rgba(201,169,110,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+          }}>
+            {d.gv&&<span style={{color:C.bg,fontSize:11,fontWeight:700}}>✓</span>}
+          </button>
+        </div>
+        <textarea value={d.gvNote||""} onChange={e=>setD(p=>({...p,gvNote:e.target.value}))}
+          placeholder="감사한 것…" style={S.noteArea} rows={2}/>
+      </div>
+
+      {/* 주간 미션 */}
+      <div style={{borderTop:"1px solid rgba(201,169,110,0.12)",paddingTop:14,marginBottom:16}}>
+        <div style={{fontSize:11,color:C.dim,letterSpacing:2,marginBottom:10}}>주간 미션 · {weekKeyLabel(weekKey)}</div>
+        {missions.map(m=>(
+          <div key={m.id} style={{
+            display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"10px 0",borderBottom:"1px solid rgba(201,169,110,0.07)",
+          }}>
+            <span style={{fontSize:13,color:wk[m.id]?C.text:C.dim}}>{m.label}</span>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:11,color:wk[m.id]?C.gold:"rgba(201,169,110,0.3)"}}>+{m.xp}</span>
+              <button onClick={()=>setWk(p=>({...p,[m.id]:!p[m.id]}))} style={{
+                width:26,height:26,borderRadius:6,border:"none",cursor:"pointer",
+                background:wk[m.id]?C.gold:"rgba(255,255,255,0.1)",
+                outline:wk[m.id]?"none":"1px solid rgba(201,169,110,0.4)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+              }}>
+                {wk[m.id]&&<span style={{color:C.bg,fontSize:11,fontWeight:700}}>✓</span>}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 저장 버튼 */}
+      <button onClick={()=>onSave(d,wk,weekKey)} style={{
+        width:"100%",padding:"12px",border:"none",borderRadius:10,cursor:"pointer",
+        background:saved?"rgba(201,169,110,0.2)":C.gold,
+        color:saved?C.gold:C.bg,
+        fontSize:13,fontFamily:"'Playfair Display', Georgia, serif",
+        outline:saved?"1px solid rgba(201,169,110,0.5)":"none",
+        transition:"all 0.2s",fontWeight:saved?400:600,
+      }}>
+        {saved?"저장됨 ✓":"저장하기"}
+      </button>
     </div>
   );
 }
