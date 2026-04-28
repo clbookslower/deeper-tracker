@@ -1154,8 +1154,6 @@ function PastEditPanel({ date, day, wkData, weekKey, isPre, saved, onSave }) {
   useEffect(()=>{ setD({...day}); }, [date]);
   useEffect(()=>{ setWk({...wkData}); }, [date]);
 
-  const mpTexts = ["","한 페이지.","두 페이지.","세 페이지."];
-
   return (
     <div style={{background:C.surface,borderRadius:12,border:"1px solid rgba(201,169,110,0.25)",padding:"16px",marginBottom:14}}>
       <div style={{fontSize:11,color:C.gold,letterSpacing:1,marginBottom:14}}>{fmtDate(date)} 기록 편집</div>
@@ -1287,8 +1285,7 @@ const CSS = `
 `;
 
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
   </script>
 </body>
 </html>
